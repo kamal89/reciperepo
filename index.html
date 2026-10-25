@@ -158,8 +158,15 @@ main{padding-block:20px 60px}
 .empty h2{color:var(--ink);font-size:1.3rem;margin-bottom:6px}
 
 /* grocery view */
-.glayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:24px;align-items:start}
-@media (max-width:760px){.glayout{grid-template-columns:minmax(0,1fr)}}
+.glayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);grid-template-areas:"add list" "meals list";gap:20px;align-items:start}
+.addpanel{grid-area:add}.listpanel{grid-area:list}.mealspanel{grid-area:meals}
+@media (max-width:760px){.glayout{grid-template-columns:minmax(0,1fr);grid-template-areas:"add" "list" "meals";gap:14px}}
+.addbar{display:flex;gap:8px}
+.addbar input{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:1rem}
+.addbar .btn{padding-inline:18px}
+.addhint{margin:6px 0 0}
+.addpanel .common{margin-top:10px;border-top:0;padding-top:0}
+.addpanel .regulars{margin-top:10px}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
 .panel h2{font-size:1.15rem;margin-bottom:10px}
 .meal{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
@@ -174,11 +181,10 @@ main{padding-block:20px 60px}
 .item input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
 .item .q{font-family:var(--f-mono);font-size:.88rem;min-width:84px;color:var(--accent);flex:none;font-variant-numeric:tabular-nums}
 .item .n{flex:1;min-width:0}
+.item .q:empty{display:none}
 .item .from{display:block;font-size:.78rem;color:var(--muted)}
 .item.done .n,.item.done .q{text-decoration:line-through;opacity:.5}
 .share{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
-.addextra{display:flex;gap:8px;margin-top:14px}
-.addextra input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .hint{font-size:.85rem;color:var(--muted)}
 
 /* overlay */
@@ -247,8 +253,15 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 .common summary::-webkit-details-marker{display:none}
 .common summary::before{content:"▸";color:var(--muted);transition:transform .15s}
 .common[open] summary::before{transform:rotate(90deg)}
-.cgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
-.cgroup .lbl{width:100%;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cgroup{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:7px}
+.cgroup .lbl{width:100%;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:-1px}
+.cgroup .chip{font-size:.82rem;padding:1px 9px;line-height:1.6}
+@media (max-width:760px){  /* phones: one swipeable row per store section */
+  .cgroup{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px;scroll-padding-inline:16px;margin-top:6px;padding-block:1px}
+  .cgroup::-webkit-scrollbar{display:none}
+  .cgroup .lbl{width:auto;flex:none;margin:0 2px 0 0;min-width:64px}
+  .cgroup .chip{flex:none;white-space:nowrap}
+}
 .cgroup .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .cgroup .chip .x{border:0;background:none;color:var(--danger);padding:0 0 0 2px;font-weight:700}
 .cedit{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center}
@@ -297,8 +310,8 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
     <div class="brand"><h1>Recipe Repo</h1><small id="status">Loading…</small></div>
     <button class="btn small primary" id="installBtn" hidden>Install app</button>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tab-recipes" aria-selected="true" data-view="recipes">Recipes</button>
-      <button class="tab" role="tab" id="tab-list" aria-selected="false" data-view="list">Grocery list <span class="count" id="mealcount">0</span></button>
+      <button class="tab" role="tab" id="tab-list" aria-selected="true" data-view="list">Grocery list <span class="count" id="mealcount" hidden>0</span></button>
+      <button class="tab" role="tab" id="tab-recipes" aria-selected="false" data-view="recipes">Recipes</button>
     </div>
   </div>
 </header>
@@ -343,12 +356,20 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 
   <section id="view-list" hidden>
     <div class="glayout">
-      <div class="panel">
-        <h2>Meals we picked</h2>
-        <div id="meals"></div>
-        <div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn small ghost" id="clearMeals">Clear all meals</button></div>
+      <div class="panel addpanel">
+        <form class="addbar" id="extraForm" autocomplete="off">
+          <input id="extraIn" list="itemSuggest" placeholder="Add to the list: milk, eggs, bread…" aria-label="Add items to the grocery list" enterkeyhint="done">
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+        <datalist id="itemSuggest"></datalist>
+        <p class="hint addhint">Separate several items with commas.</p>
+        <div class="regulars" id="regulars" hidden></div>
+        <details class="common" id="common">
+          <summary>Common items <span class="hint">tap to add or remove</span></summary>
+          <div id="commonBody"></div>
+        </details>
       </div>
-      <div class="panel">
+      <div class="panel listpanel">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
           <h2>Shopping list</h2>
           <span class="hint" id="listcount"></span>
@@ -361,15 +382,11 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
           <button class="btn small ghost" id="uncheck">Uncheck all</button>
         </div>
         <div id="glist"></div>
-        <details class="common" id="common">
-          <summary>Common items <span class="hint">tap to add or remove</span></summary>
-          <div id="commonBody"></div>
-        </details>
-        <div class="regulars" id="regulars" hidden></div>
-        <form class="addextra" id="extraForm">
-          <input id="extraIn" placeholder="Add anything else" aria-label="Add an extra item">
-          <button class="btn small" type="submit">Add</button>
-        </form>
+      </div>
+      <div class="panel mealspanel" id="mealsPanel">
+        <h2>Meals we picked</h2>
+        <div id="meals"></div>
+        <div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn small ghost" id="clearMeals">Clear all meals</button></div>
       </div>
     </div>
   </section>
@@ -427,7 +444,7 @@ const normPlan=d=>{const p={meals:{...(d?.meals||{})},checked:{...(d?.checked||{
 let filters={meal:null,cuisine:null,tag:null,q:"",show:null};
 let sortBy="az"; try{sortBy=localStorage.getItem("rb-sort")||"az";}catch{}
 const lastMade=r=>(r.made&&r.made[0])||"";
-let view="recipes";
+let view="list";
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -651,7 +668,7 @@ function renderGrocery(){
     return `<div class="meal" data-meal="${esc(r.mealType||"")}"><span class="dot"></span><div class="nm">${esc(r.title)}</div>
       <div class="stepper" aria-label="Servings"><button data-srv="${id}" data-d="-1" aria-label="Fewer servings">−</button><span>${s} serv</span><button data-srv="${id}" data-d="1" aria-label="More servings">+</button></div>
       <button class="btn small ghost" data-pick="${id}" aria-label="Remove ${esc(r.title)}">✕</button></div>`;}).join("")
-    : `<p class="hint">No meals picked yet. Go to <b>Recipes</b> and tap <b>+ Add to meals</b> on what you want to cook.</p>`;
+    : `<p class="hint" style="margin:0">No meals picked. In <b>Recipes</b>, tap <b>+ Add to meals</b> to add a recipe's ingredients to the list.</p>`;
   $("#clearMeals").hidden=!ids.length;
   const all=buildList(); let total=0,open=0;
   const itemHtml=e=>{const done=!!plan.checked[e.key];
@@ -665,13 +682,13 @@ function renderGrocery(){
     <div class="staplechips">${st.map(x=>`<span class="chip">${esc(x)}${canWrite?` <button class="btn small ghost" style="padding:0 2px" data-rmstaple="${esc(x)}" aria-label="Remove ${esc(x)} from staples">✕</button>`:""}</span>`).join("")}
     ${canWrite?`<form id="stapleForm"><input id="stapleIn" placeholder="Add something you always have" aria-label="Add a staple"><button class="btn small" type="submit">Add</button></form>`:""}</div>
     <p class="hint" style="margin:6px 0 0">Staples stay off the list you copy or send, with a reminder to check them.</p></div>`;
-  $("#glist").innerHTML=(all.length? html : `<p class="hint" style="margin-top:14px">Your list fills in as you pick meals. You can also add extra items below.</p>`)+(all.length?staplesHtml:"");
+  $("#glist").innerHTML=(all.length? html : `<p class="hint" style="margin-top:14px">The list is empty. Add items above, tap common items, or pick meals from Recipes.</p>`)+(all.length?staplesHtml:"");
   const sf=$("#stapleForm"); if(sf) sf.onsubmit=ev=>{ev.preventDefault();const v=$("#stapleIn").value.trim().toLowerCase();if(!v)return;
     if(!st.includes(v)){plan.staples=[...st,v];savePlan();} setTimeout(()=>$("#stapleIn")?.focus(),0);};
   $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
-  $("#mealcount").textContent=ids.length;
+  $("#mealcount").textContent=open; $("#mealcount").hidden=!open;   // items still to buy
 }
-function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderCommon(); renderRegulars();
+function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderCommon(); renderRegulars(); renderSuggest();
   $("#addBtn").disabled=!canWrite; $("#importBtn").disabled=!canWrite; }
 
 /* Back button: the grocery tab and every open sheet (recipe, edit form, …) are entries in the phone's
@@ -681,11 +698,12 @@ function showView(v){view=v;
   $("#tab-recipes").setAttribute("aria-selected",v==="recipes"); $("#tab-list").setAttribute("aria-selected",v==="list");
 }
 const hstate=()=>history.state||{};
+const HOME="list";   // the grocery list is the home screen; Recipes is one step in
 function setView(v){
   if(v===view) return;
   try{
-    if(v==="list"){ history.pushState({view:"list",pushed:true,sheet:0},"","#list"); }
-    else if(hstate().pushed&&hstate().view==="list"&&!sheetDepth){ history.back(); return; }   // popstate shows Recipes
+    if(v!==HOME){ history.pushState({view:v,pushed:true,sheet:0},"","#"+v); }
+    else if(hstate().pushed&&hstate().view!==HOME&&!sheetDepth){ history.back(); return; }   // popstate shows the list
     else history.replaceState({...hstate(),view:v},"","#"+v);
   }catch{}
   showView(v);
@@ -790,7 +808,7 @@ window.addEventListener("popstate",()=>{
   const st=hstate(), d=st.sheet||0;
   if(d<sheetDepth){ sheetReopen.length=d; sheetDepth=d;
     if(d===0) hideOverlay(); else { const re=sheetReopen[d-1]; if(re){restoring=true;re();restoring=false;} else hideOverlay(); } }
-  showView(st.view==="list"?"list":"recipes");
+  showView(st.view==="recipes"?"recipes":"list");
 });
 // Keep the screen awake while a recipe is open (cooking mode)
 let wake=null, wantWake=false;
@@ -1041,7 +1059,7 @@ try{ $("#common").open=localStorage.getItem("rb-common-open")!=="0"; }catch{ $("
 $("#common").addEventListener("toggle",()=>{try{localStorage.setItem("rb-common-open",$("#common").open?"1":"0");}catch{}});
 function renderCommon(){
   const box=$("#commonBody"); if(!box) return;
-  $("#common").hidden=!canWrite;
+  $("#common").hidden=!canWrite; $("#extraForm").hidden=!canWrite; $(".addhint").hidden=!canWrite;
   const onList=new Set((plan.extras||[]).map(x=>regKey(x.text)));
   const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Household","Other"];
   const groups={}; for(const it of commonItems()) (groups[aisleOf(it,"")]??=[]).push(it);
@@ -1081,7 +1099,16 @@ $("#regulars").addEventListener("click",e=>{
   if(b.dataset.reg){const r=(plan.regulars||{})[b.dataset.reg]; if(r) addExtra(r.text); return;}
   if(b.dataset.forget){const {[b.dataset.forget]:_,...rest}=plan.regulars||{}; plan.regulars=rest; savePlan();}
 });
-$("#extraForm").addEventListener("submit",e=>{e.preventDefault();addExtra($("#extraIn").value);$("#extraIn").value="";});
+$("#extraForm").addEventListener("submit",e=>{e.preventDefault();
+  const parts=$("#extraIn").value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+  parts.forEach(x=>addExtra(x.charAt(0).toUpperCase()+x.slice(1)));
+  $("#extraIn").value=""; $("#extraIn").focus();
+  if(parts.length>1) toast(`Added ${parts.length} items.`);
+});
+function renderSuggest(){
+  const names=[...new Set([...commonItems(),...Object.values(plan.regulars||{}).map(r=>r.text)])].sort((a,b)=>a.localeCompare(b));
+  $("#itemSuggest").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
+}
 $("#copyList").onclick=()=>{const text=listText();
   try{navigator.clipboard.writeText(text).then(()=>toast("List copied. Paste it into a text, email or notes app."),()=>copyFallback(text));}catch{copyFallback(text);}};
 $("#emailList").onclick=()=>{const text=listText();
@@ -1190,7 +1217,7 @@ function takeShare(){
 let pendingShare=takeShare();
 function openShare(){
   if(!pendingShare||!canWrite) return;
-  const sh=pendingShare; pendingShare=null; showView("recipes");
+  const sh=pendingShare; pendingShare=null; try{history.replaceState({...hstate(),view:"recipes"},"","#recipes");}catch{} showView("recipes");
   const norm=u=>u.replace(/[#?].*$/,"").replace(/\/$/,"").toLowerCase();
   const dup=sh.source&&recipes.find(r=>r.source&&norm(r.source)===norm(sh.source));
   if(dup){showRecipe(dup.id);toast("You already have this recipe.");return;}
@@ -1199,8 +1226,9 @@ function openShare(){
 }
 
 /* ---------- boot ---------- */
-try{history.replaceState({view:location.hash==="#list"?"list":"recipes",sheet:0},"",location.hash||"#recipes");}catch{}
-showView(location.hash==="#list"?"list":"recipes");
+{const v0=location.hash==="#recipes"?"recipes":"list";
+ try{history.replaceState({view:v0,sheet:0},"","#"+v0);}catch{}
+ showView(v0);}
 
 render();
 (async()=>{

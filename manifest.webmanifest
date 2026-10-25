@@ -1,7 +1,7 @@
 {
   "name": "Recipe Repo",
   "short_name": "Recipe Repo",
-  "description": "Our recipes, sorted by meal, cuisine and tags, with a combined grocery list.",
+  "description": "Our grocery list and recipes: quick-add everyday items, pick meals, and get one combined shopping list.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -35,9 +35,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Grocery list",
-      "short_name": "List",
-      "url": "./#list",
+      "name": "Recipes",
+      "short_name": "Recipes",
+      "url": "./#recipes",
       "icons": [
         {
           "src": "icons/icon-192.png",

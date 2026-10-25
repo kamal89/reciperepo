@@ -1,6 +1,6 @@
 # Recipe Repo
 
-A small recipe library for the household. Add recipes, sort them by meal, cuisine and tags, pick what you want to cook, and get one combined grocery list grouped by store section.
+A shared grocery list and recipe library for the household. The app opens on the grocery list: add items by typing (several at once, separated by commas) or by tapping common items, and check them off in the store. In Recipes, sort and filter your recipes, pick what you want to cook, and their ingredients join the same list, grouped by store section.
 
 The app is a single page, `index.html`, with no build step. Recipes and the grocery list are stored in Cloud Firestore behind Google sign-in, so everyone with access sees the same data. It is also an installable Android app (a Progressive Web App).
 
@@ -37,7 +37,7 @@ You can also open `index.html` directly from disk, but installing and offline us
 
 1. Open the site in **Chrome** on the phone.
 2. Tap **Install app** in the app's header. If the button doesn't appear, use Chrome's menu (⋮) → **Add to Home screen** → **Install**.
-3. Open **Recipe Repo** from the home screen. It runs full-screen, works offline, and long-pressing the icon offers a shortcut straight to the grocery list.
+3. Open **Recipe Repo** from the home screen. It runs full-screen, works offline, and long-pressing the icon offers a shortcut straight to Recipes.
 
 App files:
 
