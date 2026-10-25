@@ -191,14 +191,15 @@ main{padding-block:20px 60px}
 <script>
 const MEALS=["Breakfast","Lunch","Dinner","Side","Dessert","Snack"];
 const TAGS=["Vegetarian","Vegan","Quick","Make-ahead","Kid-friendly","Freezer","Gluten-free","Slow cooker"];
-const AISLES=[
- ["Spices",/\b(salt|black pepper|peppercorn|cumin|paprika|cinnamon|oregano|chili powder|chili flakes|red pepper flakes|curry powder|turmeric|nutmeg|spice|bay lea|cayenne|garam|vanilla)\b/],
- ["Produce",/\b(onion|garlic|shallot|tomato|potato|carrot|celery|lettuce|spinach|kale|cabbage|pepper|bell|jalape|chil[ie]|lemon|lime|orange|apple|banana|berr|avocado|cucumber|zucchini|squash|mushroom|herb|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallion|green onion|leek|broccoli|cauliflower|corn|pea|bean sprout|eggplant|sweet potato|fruit|grape|mango|pear|arugula)\b/],
- ["Meat & Fish",/\b(chicken|beef|pork|bacon|sausage|turkey|lamb|steak|ground|salmon|tuna|shrimp|fish|cod|prosciutto|ham|chorizo)\b/],
- ["Dairy & Eggs",/\b(milk|butter|cream|cheese|parmesan|mozzarella|cheddar|feta|yogurt|yoghurt|egg|eggs|sour cream|ricotta)\b/],
- ["Bakery",/\b(bread|bun|tortilla|pita|baguette|roll|naan|bagel)\b/],
+const AISLES=[ // first match wins, so specific rules come before broad ones
+ ["Pantry",/\b(broth|stock|bouillon|tomato paste|canned|crushed tomato|pureed|tahini|dressing|sauce|oil|vinegar|wine)\b/],
  ["Frozen",/\bfrozen\b/],
- ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodle|oil|vinegar|soy|sauce|stock|broth|can|canned|bean|lentil|chickpea|oat|honey|syrup|baking|yeast|nut|almond|peanut|tahini|mustard|ketchup|mayo|coconut|tomato paste|chocolate|cocoa|breadcrumb|cornstarch|stock)\b/],
+ ["Meat & Fish",/\b(chicken|beef|pork|bacon|sausage|turkey|lamb|steak|salmon|tuna|shrimp|fish|cod|prosciutto|ham|chorizo)\b/],
+ ["Spices",/\b(salt|black pepper|peppercorns?|cumin|paprika|cinnamon|oregano|chili powder|chili flakes|red pepper flakes|curry powder|turmeric|nutmeg|spices?|bay lea\w*|cayenne|garam masala|coriander|cardamom|vanilla|dried \w+)\b/],
+ ["Dairy & Eggs",/\b(milk|butter|cream|cheese|parmesan|mozzarella|cheddar|feta|yogurt|yoghurt|eggs?|sour cream|ricotta)\b/],
+ ["Produce",/\b(onions?|garlic|shallots?|tomato(es)?|potato(es)?|carrots?|celery|lettuce|spinach|kale|cabbage|peppers?|bell|jalape\w*|chil(i|e|ies|es)|lemons?|limes?|oranges?|apples?|bananas?|berr\w*|avocados?|cucumbers?|zucchini|squash|mushrooms?|herbs?|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallions?|leeks?|broccoli|cauliflower|corn|peas|eggplants?|fruit|grapes?|mangos?|pears?|arugula)\b/],
+ ["Bakery",/\b(bread|buns?|tortillas?|pita|baguette|rolls?|naan|bagels?)\b/],
+ ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch)\b/],
 ];
 const UNITS={cup:"cup",cups:"cup",c:"cup",tablespoon:"tbsp",tablespoons:"tbsp",tbsp:"tbsp",tbs:"tbsp",T:"tbsp",teaspoon:"tsp",teaspoons:"tsp",tsp:"tsp",t:"tsp",g:"g",gram:"g",grams:"g",kg:"kg",ml:"ml",l:"l",liter:"l",litre:"l",oz:"oz",ounce:"oz",ounces:"oz",lb:"lb",lbs:"lb",pound:"lb",pounds:"lb",clove:"clove",cloves:"clove",can:"can",cans:"can",tin:"can",tins:"can",pinch:"pinch",bunch:"bunch",bunches:"bunch",slice:"slice",slices:"slice",stick:"stick",sticks:"stick",package:"pkg",packages:"pkg",pkg:"pkg",jar:"jar",jars:"jar",head:"head",heads:"head",sprig:"sprig",sprigs:"sprig",handful:"handful"};
 const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
@@ -253,6 +254,7 @@ function buildList(){
     const r=recipes.find(x=>x.id===rid); if(!r) continue;
     const factor=(m.servings||r.servings||1)/(r.servings||1);
     for(const ing of r.ingredients||[]){
+      if(/^(cold |hot |warm )?water$/i.test(ing.name.trim())) continue; // not something to buy
       const k=keyOf(ing.name,ing.unit);
       let e=map.get(k);
       if(!e){e={key:k,name:ing.name,unit:ing.unit,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name)};map.set(k,e);}
