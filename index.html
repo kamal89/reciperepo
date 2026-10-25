@@ -242,6 +242,17 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 .suggest{background:var(--mustard-soft);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700}
 .sortby{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
 .sortby select{padding:3px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.88rem}
+.common{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+.common summary{cursor:pointer;font-weight:700;display:flex;gap:8px;align-items:baseline;list-style:none}
+.common summary::-webkit-details-marker{display:none}
+.common summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+.common[open] summary::before{transform:rotate(90deg)}
+.cgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.cgroup .lbl{width:100%;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cgroup .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cgroup .chip .x{border:0;background:none;color:var(--danger);padding:0 0 0 2px;font-weight:700}
+.cedit{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.cedit input{flex:1 1 160px;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
 .regulars{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;align-items:center}
 .regulars .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:2px}
 .regulars .chip{display:inline-flex;align-items:center;gap:4px}
@@ -350,9 +361,13 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
           <button class="btn small ghost" id="uncheck">Uncheck all</button>
         </div>
         <div id="glist"></div>
+        <details class="common" id="common">
+          <summary>Common items <span class="hint">tap to add or remove</span></summary>
+          <div id="commonBody"></div>
+        </details>
         <div class="regulars" id="regulars" hidden></div>
         <form class="addextra" id="extraForm">
-          <input id="extraIn" placeholder="Add something else (paper towels, coffee…)" aria-label="Add an extra item">
+          <input id="extraIn" placeholder="Add anything else" aria-label="Add an extra item">
           <button class="btn small" type="submit">Add</button>
         </form>
       </div>
@@ -378,14 +393,15 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 const MEALS=["Breakfast","Lunch","Dinner","Side","Dessert","Snack"];
 const TAGS=["Vegetarian","Vegan","Quick","Make-ahead","Kid-friendly","Freezer","Gluten-free","Slow cooker"];
 const AISLES=[ // first match wins, so specific rules come before broad ones
- ["Pantry",/\b(broth|stock|bouillon|tomato paste|canned|crushed tomato|pureed|tahini|dressing|sauce|oil|vinegar|wine|coconut milk|sun-dried tomato\w*|olives?)\b/],
- ["Frozen",/\bfrozen\b/],
+ ["Household",/\b(paper towels?|toilet paper|tissues?|dish soap|dishwasher|detergent|laundry|trash bags?|garbage bags?|sponges?|foil|plastic wrap|zip ?(?:lock|top)? bags?|napkins?|cleaner|soap|shampoo|toothpaste)\b/],
+ ["Pantry",/\b(broth|stock|bouillon|tomato paste|canned|crushed tomato|pureed|tahini|dressing|sauce|oil|vinegar|wine|coconut milk|sun-dried tomato\w*|olives?|peanut butter|almond butter|almond milk|oat milk)\b/],
+ ["Frozen",/\b(frozen|ice cream)\b/],
  ["Meat & Fish",/\b(chicken|beef|pork|bacon|sausage|turkey|lamb|steak|salmon|tuna|shrimp|fish|cod|prosciutto|ham|chorizo)\b/],
  ["Spices",/\b(garlic powder|onion powder|ground ginger|seasoning|sesame seeds|salt|black pepper|peppercorns?|cumin|paprika|cinnamon|oregano|chili powder|chili flakes|red pepper flakes|curry powder|turmeric|nutmeg|spices?|bay lea\w*|cayenne|garam masala|coriander|cardamom|vanilla|dried \w+)\b/],
  ["Dairy & Eggs",/\b(milk|butter|cream|cheese|parmesan|mozzarella|cheddar|feta|yogurt|yoghurt|eggs?|sour cream|ricotta)\b/],
- ["Produce",/\b(onions?|garlic|shallots?|tomato(es)?|potato(es)?|carrots?|celery|lettuce|spinach|kale|cabbage|peppers?|bell|jalape\w*|chil(i|e|ies|es)|lemons?|limes?|oranges?|apples?|bananas?|berr\w*|avocados?|cucumbers?|zucchini|squash|mushrooms?|herbs?|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallions?|leeks?|broccoli|cauliflower|corn|peas|eggplants?|fruit|grapes?|mangos?|pears?|arugula)\b/],
+ ["Produce",/\b(onions?|garlic|shallots?|tomato(es)?|potato(es)?|carrots?|celery|lettuce|spinach|kale|cabbage|peppers?|bell|jalape\w*|chil(i|e|ies|es)|lemons?|limes?|oranges?|apples?|bananas?|berr\w*|avocados?|cucumbers?|zucchini|squash|mushrooms?|herbs?|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallions?|leeks?|broccoli|cauliflower|corn|peas|eggplants?|fruit|grapes?|mangos?|pears?|arugula|greens|salad mix|grapes?|melon|watermelon|peaches?|plums?|kiwis?|herbs)\b/],
  ["Bakery",/\b(bread|buns?|tortillas?|pita|baguette|rolls?|naan|bagels?)\b/],
- ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|orzo|soba|quinoa|pastina|couscous|seeds|tortilla chips|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch)\b/],
+ ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|orzo|soba|quinoa|pastina|couscous|seeds|tortilla chips|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch|coffee|tea|cereal|granola|crackers|peanut butter|jam|snacks?|chips|salsa)\b/],
 ];
 const UNITS={cup:"cup",cups:"cup",c:"cup",tablespoon:"tbsp",tablespoons:"tbsp",tbsp:"tbsp",tbs:"tbsp",T:"tbsp",teaspoon:"tsp",teaspoons:"tsp",tsp:"tsp",t:"tsp",g:"g",gram:"g",grams:"g",kg:"kg",ml:"ml",l:"l",liter:"l",litre:"l",oz:"oz",ounce:"oz",ounces:"oz",lb:"lb",lbs:"lb",pound:"lb",pounds:"lb",clove:"clove",cloves:"clove",can:"can",cans:"can",tin:"can",tins:"can",pinch:"pinch",bunch:"bunch",bunches:"bunch",slice:"slice",slices:"slice",stick:"stick",sticks:"stick",package:"pkg",packages:"pkg",pkg:"pkg",jar:"jar",jars:"jar",head:"head",heads:"head",sprig:"sprig",sprigs:"sprig",handful:"handful"};
 const TAG_KIND={vegetarian:"diet",vegan:"diet","dairy-free":"diet",pescatarian:"diet","gluten-free":"gf",quick:"time","make-ahead":"time",freezer:"time","slow cooker":"time","one-pot":"time","kid-friendly":"kid"};
@@ -407,7 +423,7 @@ const DEFAULT_STAPLES=["salt","black pepper","olive oil"];
 const staples=()=>plan.staples??DEFAULT_STAPLES;
 const isStaple=e=>{if(e.extra)return false;const n=nameKey(e.name);return staples().some(s=>{const k=nameKey(s);return k&&(n===k||n.endsWith(" "+k));});};
 const normPlan=d=>{const p={meals:{...(d?.meals||{})},checked:{...(d?.checked||{})},extras:[...(d?.extras||[])]};if(Array.isArray(d?.staples))p.staples=[...d.staples];
-  if(d?.regulars&&typeof d.regulars==="object")p.regulars={...d.regulars};return p;};
+  if(d?.regulars&&typeof d.regulars==="object")p.regulars={...d.regulars};if(Array.isArray(d?.common))p.common=[...d.common];return p;};
 let filters={meal:null,cuisine:null,tag:null,q:"",show:null};
 let sortBy="az"; try{sortBy=localStorage.getItem("rb-sort")||"az";}catch{}
 const lastMade=r=>(r.made&&r.made[0])||"";
@@ -498,8 +514,8 @@ function buildList(){
     const nk=nameKey(e.name), other=[...map.values()].find(o=>o!==e&&o.qty!=null&&nameKey(o.name)===nk);
     if(other){other.noQty=true;e.from.forEach(f=>other.from.add(f));map.delete(k);}
   }
-  for(const x of plan.extras||[]) map.set("x:"+x.id,{key:"x:"+x.id,name:x.text,unit:"",qty:null,from:new Set(),aisle:"Extras",extra:true});
-  const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Other","Extras"];
+  for(const x of plan.extras||[]){const a=aisleOf(x.text,""); map.set("x:"+x.id,{key:"x:"+x.id,name:x.text,unit:"",qty:null,from:new Set(),aisle:a==="Other"?"Extras":a,extra:true});}
+  const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Household","Other","Extras"];
   const groups={}; for(const e of map.values()) (groups[e.aisle]??=[]).push(e);
   return order.filter(a=>groups[a]).map(a=>[a,groups[a].sort((x,y)=>x.name.localeCompare(y.name))]);
 }
@@ -655,7 +671,7 @@ function renderGrocery(){
   $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
   $("#mealcount").textContent=ids.length;
 }
-function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderRegulars();
+function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderCommon(); renderRegulars();
   $("#addBtn").disabled=!canWrite; $("#importBtn").disabled=!canWrite; }
 
 /* Back button: the grocery tab and every open sheet (recipe, edit form, …) are entries in the phone's
@@ -1015,13 +1031,45 @@ function addExtra(v){
   const keys=Object.keys(plan.regulars); if(keys.length>40){keys.sort((a,b)=>(plan.regulars[a].n-plan.regulars[b].n)||plan.regulars[a].last.localeCompare(plan.regulars[b].last)).slice(0,keys.length-40).forEach(x=>delete plan.regulars[x]);}
   savePlan();
 }
+/* ---------- common grocery items: one tap adds to the list, a second tap takes it off ---------- */
+const DEFAULT_COMMON=["Bananas","Apples","Berries","Lemons","Limes","Avocados","Salad greens","Spinach","Tomatoes","Cucumbers","Bell peppers","Onions","Garlic","Potatoes","Carrots",
+  "Milk","Eggs","Butter","Greek yogurt","Cheese","Bread","Tortillas","Coffee","Tea","Olive oil","Rice","Pasta","Oats","Peanut butter",
+  "Frozen fruit","Frozen vegetables","Paper towels","Toilet paper","Dish soap","Trash bags"];
+const commonItems=()=>Array.isArray(plan.common)?plan.common:DEFAULT_COMMON;
+let commonEdit=false;
+try{ $("#common").open=localStorage.getItem("rb-common-open")!=="0"; }catch{ $("#common").open=true; }
+$("#common").addEventListener("toggle",()=>{try{localStorage.setItem("rb-common-open",$("#common").open?"1":"0");}catch{}});
+function renderCommon(){
+  const box=$("#commonBody"); if(!box) return;
+  $("#common").hidden=!canWrite;
+  const onList=new Set((plan.extras||[]).map(x=>regKey(x.text)));
+  const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Household","Other"];
+  const groups={}; for(const it of commonItems()) (groups[aisleOf(it,"")]??=[]).push(it);
+  box.innerHTML=order.filter(a=>groups[a]).map(a=>`<div class="cgroup"><span class="lbl">${esc(a)}</span>${groups[a].map(it=>commonEdit
+      ?`<span class="chip">${esc(it)}<button type="button" class="x" data-cdel="${esc(it)}" aria-label="Remove ${esc(it)} from common items">✕</button></span>`
+      :`<button type="button" class="chip" data-common="${esc(it)}" aria-pressed="${onList.has(regKey(it))}">${onList.has(regKey(it))?"✓ ":""}${esc(it)}</button>`).join("")}</div>`).join("")
+    +`<div class="cedit">${commonEdit?`<form id="commonForm" style="display:contents"><input id="commonIn" placeholder="Add a common item" aria-label="Add a common item" enterkeyhint="done"><button class="btn small" type="submit">+ Add</button></form>
+      <button type="button" class="btn small ghost" data-creset>Reset to defaults</button>`:""}
+      <button type="button" class="btn small ghost" data-cedit>${commonEdit?"Done":"Edit common items"}</button></div>`;
+  const f=$("#commonForm"); if(f) f.onsubmit=e=>{e.preventDefault();const v=$("#commonIn").value.trim().slice(0,40);if(!v)return;
+    if(!commonItems().some(x=>regKey(x)===regKey(v))){plan.common=[...commonItems(),v];savePlan();} setTimeout(()=>$("#commonIn")?.focus(),0);};
+}
+$("#commonBody").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b||!canWrite) return;
+  if(b.dataset.common!=null){ const it=b.dataset.common, ex=(plan.extras||[]).find(x=>regKey(x.text)===regKey(it));
+    if(ex){ plan.extras=plan.extras.filter(x=>x!==ex); delete plan.checked["x:"+ex.id]; savePlan(); } else addExtra(it); return; }
+  if(b.hasAttribute("data-cedit")){commonEdit=!commonEdit;renderCommon();return;}
+  if(b.dataset.cdel!=null){plan.common=commonItems().filter(x=>x!==b.dataset.cdel);savePlan();return;}
+  if(b.hasAttribute("data-creset")){const {common,...rest}=plan;plan=rest;savePlan();toast("Common items reset.");}
+});
 let regEdit=false;
 function renderRegulars(){
   const box=$("#regulars"); if(!box) return;
   const onList=new Set((plan.extras||[]).map(x=>regKey(x.text)));
   const regs=Object.entries(plan.regulars||{}).sort((a,b)=>(b[1].n-a[1].n)||b[1].last.localeCompare(a[1].last));
-  const show=regs.filter(([k])=>regEdit||!onList.has(k)).slice(0,regEdit?40:10);
-  box.hidden=!regs.length||!canWrite;
+  const common=new Set(commonItems().map(regKey));
+  const show=regs.filter(([k])=>regEdit||(!onList.has(k)&&!common.has(k))).slice(0,regEdit?40:10);
+  box.hidden=!canWrite||!(regEdit?regs.length:show.length);
   box.innerHTML=`<span class="lbl">Regulars</span>`+(show.length?show.map(([k,r])=>regEdit
       ?`<span class="chip">${esc(r.text)}<button type="button" class="x" data-forget="${esc(k)}" aria-label="Forget ${esc(r.text)}">✕</button></span>`
       :`<button type="button" class="chip" data-reg="${esc(k)}">+ ${esc(r.text)}</button>`).join(""):`<span class="hint">All on the list.</span>`)
