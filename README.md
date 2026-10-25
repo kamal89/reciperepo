@@ -20,6 +20,10 @@ The app is a single page, `index.html`, with no build step. Recipes and the groc
 - **Cooking timers.** Tap any highlighted time in the steps ("8 minutes", "3–4 hours") to start a countdown; ranges start at the shorter time. Timers float at the bottom of the screen with pause, +1 min and cancel, keep running if you close the recipe or the app, and beep, vibrate and (in the installed app) notify when done.
 - **Scale while you cook.** The open recipe has its own servings control; amounts are recalculated and re-expressed in sensible units. If the meal is on the grocery list, one tap applies the new servings there too.
 - **Ratings and notes.** Give each recipe 1–5 stars and a "next time" note from the recipe view. Both show on the recipe cards and are kept through edits and backups.
+- **Favorites and "last made".** Heart a recipe from its card or recipe view. **✓ We made this today** records when you cooked it (with Undo), and cards show "Made 2 weeks ago" or "Not made yet". Filter to favorites or never-made recipes, and sort by A–Z, favorites, not made in a while, recently made, top rated or newest.
+- **What's for dinner?** Picks a recipe from whatever is currently showing, leaning toward favorites, higher ratings and things you haven't made lately. **Pick another** rolls again without repeats.
+- **Regulars.** Extras you add to the grocery list are remembered; the most frequent show as one-tap chips. **Edit** lets you forget ones you no longer buy.
+- **Undo and Recently deleted.** Deleting a recipe moves it to **Recently deleted** at the bottom of the Recipes screen, with an Undo right after. Restore it any time within 30 days, or delete it forever. **Clear all meals** can be undone too.
 - **Keep screen on.** A toggle on each recipe stops the phone from going dark while you cook (Android Chrome and most desktop browsers).
 
 ## Running it
