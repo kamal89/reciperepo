@@ -23,7 +23,14 @@ window.FIREBASE_CONFIG={
   appId:"1:476674450541:web:9e0ffeb3cb6507b0208b64"
 };
 </script>
-<script>if("serviceWorker" in navigator&&location.protocol!=="file:"){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+<script>
+if("serviceWorker" in navigator&&location.protocol!=="file:"){
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>reg.update()).catch(()=>{}));
+  // When a new version of the app takes over, reload once so the new code runs right away.
+  const hadController=!!navigator.serviceWorker.controller; let reloaded=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(hadController&&!reloaded){ reloaded=true; location.reload(); } });
+}
+</script>
 </head>
 <body>
 <title>Recipe Repo</title>
@@ -181,7 +188,21 @@ main{padding-block:20px 60px}
 .ing{list-style:none;padding:0;margin:0}
 .ing li{display:flex;gap:10px;padding:5px 0;border-bottom:1px dotted var(--line)}
 .ing .q{font-family:var(--f-mono);font-size:.88rem;min-width:84px;color:var(--accent)}
-.steps{white-space:pre-wrap;margin:0;line-height:1.6;max-width:65ch}
+.ing li.sec{border-bottom:0;padding:12px 0 2px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--mc,var(--muted))}
+.steps{margin:0;padding:0;list-style:none;counter-reset:step;display:flex;flex-direction:column;gap:10px;max-width:65ch}
+.steps li.step{counter-increment:step;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;line-height:1.6;cursor:pointer;border-radius:8px;padding:2px 4px 2px 0}
+.steps li.step::before{content:counter(step);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--mc-bg,var(--sunk));color:var(--mc,var(--ink));font-family:var(--f-mono);font-size:.85rem;font-weight:500;margin-top:1px}
+.steps li.step.done{opacity:.45}
+.steps li.step.done::before{content:"✓"}
+.steps li.sec{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--mc,var(--muted));padding-top:8px}
+.steps li.callout{background:var(--mustard-soft);border-radius:8px;padding:8px 12px;line-height:1.55}
+.steps li.callout b{margin-right:4px}
+.steps li.plain{line-height:1.6}
+.dur,.temp{font-family:var(--f-mono);font-size:.9em;background:var(--sunk);border-radius:4px;padding:0 4px;white-space:nowrap}
+.temp{background:var(--snack-bg);color:var(--snack)}
+.fmtbar{display:flex;gap:6px;flex-wrap:wrap}
+.fmtbar button{font-size:.8rem;padding:2px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.fmtbar button b{font-weight:800}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form .full{grid-column:1/-1}
 @media (max-width:520px){.form{grid-template-columns:1fr}}
@@ -331,7 +352,11 @@ function parseQty(s){
   return [null,""];
 }
 function parseLine(raw){
+  const hd=raw.trim().match(/^#+\s*(.+?)\s*:?$/)||(!/^[\d½¼¾⅓⅔⅛]/.test(raw.trim().replace(/^[\s\-*•·▢☐□◻▪◦✓✔]+/,""))&&raw.trim().length<60&&raw.trim().match(/^[\s\-*•·▢☐□◻▪◦✓✔]*(.+?):\s*$/));
+  if(hd&&/^(ingredients?|instructions|directions|method|steps)$/i.test(hd[1].trim())) return null;   // pasted page labels
+  if(hd){const h=hd[1].replace(/[:\s]+$/,"").trim(); if(h) return {heading:h,raw:h+":"};}   // "For the sauce:" or "# Sauce"
   let line=raw.replace(/^[\s\-*•·▢☐□◻▪◦✓✔]+/,"").replace(/^\d+[.)]\s+/,"").trim(); if(!line) return null;
+  if(/^(ingredients?|instructions|directions|method|steps)$/i.test(line)) return null;   // pasted page labels
   const [qty,used]=parseQty(line);
   let rest=line.slice(used.length).trim();
   let unit="";
@@ -381,6 +406,7 @@ function buildList(){
     const r=recipes.find(x=>x.id===rid); if(!r) continue;
     const factor=(m.servings||r.servings||1)/(r.servings||1);
     for(const ing of r.ingredients||[]){
+      if(ing.heading) continue; // section heading, not an ingredient
       if(/^(cold |hot |warm )?water$/i.test(ing.name.trim())) continue; // not something to buy
       const k=keyOf(ing.name,ing.unit), fam=FAM[ing.unit];
       let e=map.get(k);
@@ -476,7 +502,7 @@ function renderFilters(){
 function filtered(){
   const q=filters.q.toLowerCase();
   return recipes.filter(r=>(!filters.meal||r.mealType===filters.meal)&&(!filters.cuisine||r.cuisine===filters.cuisine)&&(!filters.tag||(r.tags||[]).includes(filters.tag))
-    &&(!q||r.title.toLowerCase().includes(q)||(r.ingredients||[]).some(i=>i.name.toLowerCase().includes(q)))).sort((a,b)=>a.title.localeCompare(b.title));
+    &&(!q||r.title.toLowerCase().includes(q)||(r.ingredients||[]).some(i=>(i.name||"").toLowerCase().includes(q)))).sort((a,b)=>a.title.localeCompare(b.title));
 }
 function renderGrid(){
   const g=$("#grid");
@@ -491,7 +517,7 @@ function renderGrid(){
         ${r.cuisine?`<div class="cuisine">${esc(r.cuisine)}</div>`:""}
         <h3><button data-open="${r.id}">${esc(r.title)}</button></h3>
         <div class="tags">${(r.tags||[]).map(tagHtml).join("")}</div>
-        <div class="foot"><span class="hint">${(r.ingredients||[]).length} ingredients · serves ${r.servings||"?"}</span>
+        <div class="foot"><span class="hint">${(r.ingredients||[]).filter(i=>!i.heading).length} ingredients · serves ${r.servings||"?"}</span>
         <button class="btn small${picked?" primary":""}" data-pick="${r.id}" aria-pressed="${picked}">${picked?"✓ On the list":"+ Add to meals"}</button></div>
       </div>
     </article>`;}).join("");
@@ -531,6 +557,33 @@ function setView(v){view=v;
   try{history.replaceState(null,"","#"+v)}catch{}
 }
 
+/* ---------- step formatting ----------
+   One step per line (existing "1." numbering is ignored).
+   "For the sauce:" or "# Sauce" -> section heading. "Tip: …", "Note: …", "To store: …" -> highlighted note.
+   **bold**, *italic*. Cooking times and oven temperatures are highlighted. */
+const NOTE_LABEL=/^(tips?|notes?|to store|to freeze|to reheat|storage|serving|to serve|make ahead|variations?|substitutions?|leftovers)\s*:\s*/i;
+function inlineFmt(t){
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/(^|[\s(])[*_](?!\s)(.+?)[*_](?=[\s.,;:!?)]|$)/g,"$1<em>$2</em>")
+    .replace(/\b(\d+(?:\s*(?:[-–]|to)\s*\d+)?\s*(?:minutes?|mins?|hours?|hrs?|seconds?|secs?))\b/gi,'<span class="dur">$1</span>')
+    .replace(/\b(\d{3}\s*°\s*[FC]?|\d{3}\s*degrees(?:\s*[FC])?|\d{3}\s*[FC])(?![a-z])/gi,'<span class="temp">$1</span>');
+}
+function formatSteps(text){
+  const out=[];
+  for(let line of String(text).split(/\n/)){
+    line=line.trim().replace(/^(?:step\s*\d+[:.)]?|\d+[.)])\s*/i,"").replace(/^[-*•·]\s+/,"");
+    if(!line||/^(ingredients?|instructions|directions|method|steps)\s*:?$/i.test(line)) continue;
+    const hd=line.match(/^#+\s*(.+?)\s*:?$/)||(line.length<60&&!NOTE_LABEL.test(line)&&line.match(/^(.+?):$/));
+    if(hd){out.push(`<li class="sec">${inlineFmt(hd[1].replace(/[:\s]+$/,""))}</li>`);continue;}
+    const nl=line.match(NOTE_LABEL);
+    if(nl){const label=line.slice(0,nl[0].length).replace(/\s*:\s*$/,"");out.push(`<li class="callout"><b>${esc(label)}:</b>${inlineFmt(line.slice(nl[0].length))}</li>`);continue;}
+    out.push(`<li class="step"><span>${inlineFmt(line)}</span></li>`);
+  }
+  return `<ol class="steps">${out.join("")}</ol>`;
+}
+document.addEventListener("click",e=>{const li=e.target.closest(".steps li.step");if(li)li.classList.toggle("done");});
+
 /* ---------- dialogs ---------- */
 function openSheet(html,meal){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"${meal!=null?` data-meal="${esc(meal)}"`:""}>${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
 function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";releaseWake();}
@@ -549,8 +602,8 @@ function showRecipe(id){
   openSheet(`<div class="sheetband"><span>${esc(r.mealType||"Recipe")}${r.cuisine?" · "+esc(r.cuisine):""}</span><span class="time">${r.time?esc(r.time)+" · ":""}serves ${r.servings||"?"}</span></div>
     <div class="top"><h2>${esc(r.title)}</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
     <div class="tags">${(r.tags||[]).map(tagHtml).join("")}</div>
-    <h3>Ingredients</h3><ul class="ing">${(r.ingredients||[]).map(i=>`<li><span class="q">${esc([fmtQty(i.qty),unitText(i.unit,i.qty)].filter(Boolean).join(" "))}</span><span>${esc(i.name)}${i.note?`<span class="hint">${i.note.startsWith("(")?" ":", "}${esc(i.note)}</span>`:""}</span></li>`).join("")}</ul>
-    ${r.steps?`<h3>Steps</h3><p class="steps">${esc(r.steps)}</p>`:""}
+    <h3>Ingredients</h3><ul class="ing">${(r.ingredients||[]).map(i=>i.heading?`<li class="sec">${esc(i.heading)}</li>`:`<li><span class="q">${esc([fmtQty(i.qty),unitText(i.unit,i.qty)].filter(Boolean).join(" "))}</span><span>${esc(i.name)}${i.note?`<span class="hint">${i.note.startsWith("(")?" ":", "}${esc(i.note)}</span>`:""}</span></li>`).join("")}</ul>
+    ${r.steps?`<h3>Steps</h3>${formatSteps(r.steps)}<p class="hint" style="margin:0">Tap a step to mark it done.</p>`:""}
     ${r.source?`<p class="hint">Source: ${/^https?:\/\//.test(r.source)?`<a href="${esc(r.source)}" target="_blank" rel="noopener">${esc(r.source)}</a>`:esc(r.source)}</p>`:""}
     <div class="actions">
       ${"wakeLock" in navigator?`<button class="btn wake" id="wakeBtn" aria-pressed="${!!wake}" style="margin-right:auto">☀ Keep screen on</button>`:""}
@@ -571,13 +624,19 @@ function editRecipe(id,preset){
     <div class="field"><label for="f-time">Time</label><input id="f-time" value="${esc(r.time)}" placeholder="30 min"></div>
     <div class="field full"><label>Tags</label><div class="chiprow" id="f-tags">${allTags.map(t=>`<button type="button" class="chip" data-tg="${esc(t)}" aria-pressed="${(r.tags||[]).includes(t)}">${esc(t)}</button>`).join("")}</div>
       <input id="f-newtag" placeholder="Add your own tag and press Enter" style="margin-top:6px"></div>
-    <div class="field full"><label for="f-ing">Ingredients, one per line</label><textarea id="f-ing" rows="8" placeholder="2 cups flour&#10;1 1/2 lb chicken thighs&#10;3 cloves garlic, minced&#10;Salt">${esc((r.ingredients||[]).map(i=>i.raw).join("\n"))}</textarea>
-      <span class="hint">Start each line with the amount and unit if there is one. Matching ingredients across meals are combined.</span></div>
-    <div class="field full"><label for="f-steps">Steps</label><textarea id="f-steps" rows="6">${esc(r.steps)}</textarea></div>
+    <div class="field full"><label for="f-ing">Ingredients, one per line</label>
+      <div class="fmtbar" data-for="f-ing"><button type="button" data-fmt="section">+ Section heading</button></div>
+      <textarea id="f-ing" rows="8" placeholder="2 cups flour&#10;1 1/2 lb chicken thighs&#10;3 cloves garlic, minced&#10;Salt">${esc((r.ingredients||[]).map(i=>i.raw).join("\n"))}</textarea>
+      <span class="hint">Start each line with the amount and unit. Bulleted or numbered lists are fine. A line ending in a colon, like "For the sauce:", becomes a section heading.</span></div>
+    <div class="field full"><label for="f-steps">Steps, one per line</label>
+      <div class="fmtbar" data-for="f-steps"><button type="button" data-fmt="section">+ Section heading</button><button type="button" data-fmt="tip">+ Tip</button><button type="button" data-fmt="bold"><b>B</b> Bold</button><button type="button" data-fmt="italic"><i>I</i> Italic</button></div>
+      <textarea id="f-steps" rows="8" placeholder="Heat oven to 425°F.&#10;Roast 20 minutes.&#10;Tip: Season at the end.">${esc(r.steps)}</textarea>
+      <span class="hint">Each line becomes a numbered step. Lines starting with "Tip:" or "Note:" are highlighted, and cooking times and temperatures stand out.</span></div>
     <div class="field full"><label for="f-src">Source or link</label><input id="f-src" value="${esc(r.source)}">${/^https?:\/\//.test(r.source||"")?`<a class="hint" href="${esc(r.source)}" target="_blank" rel="noopener">Open the recipe page to copy ingredients and steps ↗</a>`:""}</div>
     <div class="actions full"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">${id?"Save changes":"Add recipe"}</button></div>
   </form>`);
   const form=$("#rform");
+  form.addEventListener("click",e=>{const b=e.target.closest("[data-fmt]");if(!b)return;e.preventDefault();applyFmt($("#"+b.parentElement.dataset.for),b.dataset.fmt);});
   form.querySelector("#f-tags").addEventListener("click",e=>{const b=e.target.closest("[data-tg]");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true");});
   form.querySelector("#f-newtag").addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const v=e.target.value.trim();if(!v)return;
     form.querySelector("#f-tags").insertAdjacentHTML("beforeend",`<button type="button" class="chip" data-tg="${esc(v)}" aria-pressed="true">${esc(v)}</button>`);e.target.value="";});
@@ -592,6 +651,23 @@ function editRecipe(id,preset){
     if(!rec.title) return;
     closeSheet(); await saveRecipe(rec); toast(id?"Recipe saved":"Recipe added");
   });
+}
+// Formatting buttons in the recipe form
+function applyFmt(ta,kind){
+  const v=ta.value, a=ta.selectionStart??v.length, z=ta.selectionEnd??v.length, sel=v.slice(a,z);
+  const lineStart=v.lastIndexOf("\n",a-1)+1;
+  let insert, start, end, caretA, caretZ;
+  if(kind==="bold"||kind==="italic"){
+    const m=kind==="bold"?"**":"*", body=sel||(kind==="bold"?"important":"note");
+    insert=m+body+m; start=a; end=z; caretA=a+m.length; caretZ=caretA+body.length;
+  } else {
+    const prefix=kind==="tip"?"Tip: ":"", text=kind==="tip"?(sel||""):(sel?sel.replace(/:?$/,":"):"New section:");
+    const atLineStart=a===lineStart, needNL=!atLineStart;
+    insert=(needNL?"\n":"")+prefix+text+(kind==="section"&&!sel?"":"")+(a===v.length||v[z]==="\n"?"":"\n");
+    start=a; end=z; caretA=a+(needNL?1:0)+prefix.length; caretZ=caretA+(kind==="section"&&!sel?"New section".length:text.length);
+  }
+  ta.value=v.slice(0,start)+insert+v.slice(end);
+  ta.focus(); try{ta.setSelectionRange(caretA,caretZ);}catch{}
 }
 function copyFallback(text){
   openSheet(`<div class="top"><h2>Copy your list</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>

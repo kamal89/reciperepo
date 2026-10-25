@@ -16,6 +16,7 @@ The app is a single page, `index.html`, with no build step. Recipes and the groc
 - **Pantry staples.** Items you always have (salt, black pepper, olive oil by default) move to a "Probably have already" section and stay off the copied list, which ends with a reminder to check them. Edit the staples at the bottom of the list.
 - **Backup and restore.** **Back up recipes** saves every recipe to a `.json` file. **Restore from backup** loads one back, adding new recipes and replacing ones with the same id. Recipes not in the file are kept.
 - **Share recipes into the app.** On Android, tap **Share** on a recipe page in Chrome (or any app) and pick **Recipe Repo**. A new recipe opens with the name and link filled in; sharing a link you already saved opens that recipe instead. Pasted ingredient lists from recipe sites (checkbox glyphs, bullets, numbering) are cleaned up automatically.
+- **Formatted ingredients and steps.** Bulleted, numbered or checkbox lists paste in cleanly. In either field, a line ending in a colon ("For the sauce:") becomes a section heading; headings never reach the grocery list. Each step line becomes a numbered step you can tap to mark done. Lines starting with "Tip:", "Note:", "To store:" and similar are highlighted, `**bold**` and `*italic*` work, and cooking times and oven temperatures stand out. The recipe form has buttons for each.
 - **Keep screen on.** A toggle on each recipe stops the phone from going dark while you cook (Android Chrome and most desktop browsers).
 
 ## Running it
