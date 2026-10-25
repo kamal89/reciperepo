@@ -15,6 +15,7 @@ The app is a single page, `index.html`, with no build step. Recipes and the groc
 - **Unit combining.** Teaspoons, tablespoons and cups of the same ingredient are added together (2 tbsp + ½ cup olive oil → ½ cup + 2 tbsp), as are ounces and pounds, grams and kilograms, and milliliters and liters.
 - **Pantry staples.** Items you always have (salt, black pepper, olive oil by default) move to a "Probably have already" section and stay off the copied list, which ends with a reminder to check them. Edit the staples at the bottom of the list.
 - **Backup and restore.** **Back up recipes** saves every recipe to a `.json` file. **Restore from backup** loads one back, adding new recipes and replacing ones with the same id. Recipes not in the file are kept.
+- **Share recipes into the app.** On Android, tap **Share** on a recipe page in Chrome (or any app) and pick **Recipe Repo**. A new recipe opens with the name and link filled in; sharing a link you already saved opens that recipe instead. Pasted ingredient lists from recipe sites (checkbox glyphs, bullets, numbering) are cleaned up automatically.
 - **Keep screen on.** A toggle on each recipe stops the phone from going dark while you cook (Android Chrome and most desktop browsers).
 
 ## Running it

@@ -331,12 +331,13 @@ function parseQty(s){
   return [null,""];
 }
 function parseLine(raw){
-  let line=raw.replace(/^[-*•\s]+/,"").trim(); if(!line) return null;
+  let line=raw.replace(/^[\s\-*•·▢☐□◻▪◦✓✔]+/,"").replace(/^\d+[.)]\s+/,"").trim(); if(!line) return null;
   const [qty,used]=parseQty(line);
   let rest=line.slice(used.length).trim();
   let unit="";
   const um=rest.match(/^([A-Za-z]+)\.?\b\s*/);
-  if(um && UNITS[um[1]]!==undefined && (qty!==null || ["pinch","bunch","handful"].includes(UNITS[um[1]]))){unit=UNITS[um[1]];rest=rest.slice(um[0].length);}
+  const uk=um&&(UNITS[um[1]]!==undefined?um[1]:um[1].toLowerCase());   // "Tbsp", "Cups" etc.
+  if(um && UNITS[uk]!==undefined && (qty!==null || ["pinch","bunch","handful"].includes(UNITS[uk]))){unit=UNITS[uk];rest=rest.slice(um[0].length);}
   rest=rest.replace(/^of\s+/i,"");
   let name=rest, note="";
   const ci=rest.search(/[,(]/); if(ci>0){name=rest.slice(0,ci).trim();note=rest.slice(ci).replace(/^[,\s]+/,"").trim();}
@@ -557,15 +558,15 @@ function showRecipe(id){
       <button class="btn primary" data-pick="${id}" data-close>${picked?"Remove from meals":"+ Add to meals"}</button>
     </div>`, r.mealType||"");
 }
-function editRecipe(id){
-  const r=id?recipes.find(x=>x.id===id):{title:"",mealType:"Dinner",cuisine:"",tags:[],servings:4,time:"",ingredients:[],steps:"",source:""};
+function editRecipe(id,preset){
+  const r=id?recipes.find(x=>x.id===id):{title:"",mealType:"Dinner",cuisine:"",tags:[],servings:4,time:"",ingredients:[],steps:"",source:"",...preset};
   const cuisines=[...new Set(recipes.map(x=>x.cuisine).filter(Boolean))];
   const allTags=[...new Set([...TAGS,...recipes.flatMap(x=>x.tags||[])])].filter(t=>t!=="Example");
   openSheet(`<div class="top"><h2>${id?"Edit recipe":"Add a recipe"}</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
   <form id="rform" class="form">
     <div class="field full"><label for="f-title">Name</label><input id="f-title" required value="${esc(r.title)}" placeholder="Grandma's chicken soup"></div>
-    <div class="field"><label for="f-meal">Meal</label><select id="f-meal">${MEALS.map(m=>`<option ${m===r.mealType?"selected":""}>${m}</option>`).join("")}</select></div>
-    <div class="field"><label for="f-cuisine">Cuisine</label><input id="f-cuisine" list="cuisines" value="${esc(r.cuisine)}" placeholder="Italian, Mexican…"><datalist id="cuisines">${cuisines.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
+    <div class="field"><label for="rf-meal">Meal</label><select id="rf-meal">${MEALS.map(m=>`<option ${m===r.mealType?"selected":""}>${m}</option>`).join("")}</select></div>
+    <div class="field"><label for="rf-cuisine">Cuisine</label><input id="rf-cuisine" list="cuisines" value="${esc(r.cuisine)}" placeholder="Italian, Mexican…"><datalist id="cuisines">${cuisines.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
     <div class="field"><label for="f-serv">Serves</label><input id="f-serv" type="number" min="1" value="${r.servings||4}"></div>
     <div class="field"><label for="f-time">Time</label><input id="f-time" value="${esc(r.time)}" placeholder="30 min"></div>
     <div class="field full"><label>Tags</label><div class="chiprow" id="f-tags">${allTags.map(t=>`<button type="button" class="chip" data-tg="${esc(t)}" aria-pressed="${(r.tags||[]).includes(t)}">${esc(t)}</button>`).join("")}</div>
@@ -573,7 +574,7 @@ function editRecipe(id){
     <div class="field full"><label for="f-ing">Ingredients, one per line</label><textarea id="f-ing" rows="8" placeholder="2 cups flour&#10;1 1/2 lb chicken thighs&#10;3 cloves garlic, minced&#10;Salt">${esc((r.ingredients||[]).map(i=>i.raw).join("\n"))}</textarea>
       <span class="hint">Start each line with the amount and unit if there is one. Matching ingredients across meals are combined.</span></div>
     <div class="field full"><label for="f-steps">Steps</label><textarea id="f-steps" rows="6">${esc(r.steps)}</textarea></div>
-    <div class="field full"><label for="f-src">Source or link</label><input id="f-src" value="${esc(r.source)}"></div>
+    <div class="field full"><label for="f-src">Source or link</label><input id="f-src" value="${esc(r.source)}">${/^https?:\/\//.test(r.source||"")?`<a class="hint" href="${esc(r.source)}" target="_blank" rel="noopener">Open the recipe page to copy ingredients and steps ↗</a>`:""}</div>
     <div class="actions full"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">${id?"Save changes":"Add recipe"}</button></div>
   </form>`);
   const form=$("#rform");
@@ -584,7 +585,7 @@ function editRecipe(id){
     const tags=[...form.querySelectorAll('[data-tg][aria-pressed="true"]')].map(b=>b.dataset.tg);
     if(id&&(r.tags||[]).includes("Example")) tags.push("Example");
     const rec={id:id||("r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
-      title:$("#f-title").value.trim(),mealType:$("#f-meal").value,cuisine:$("#f-cuisine").value.trim(),
+      title:$("#f-title").value.trim(),mealType:$("#rf-meal").value,cuisine:$("#rf-cuisine").value.trim(),
       servings:Math.max(1,parseInt($("#f-serv").value)||1),time:$("#f-time").value.trim(),tags,
       ingredients:$("#f-ing").value.split("\n").map(parseLine).filter(Boolean),
       steps:$("#f-steps").value.trim(),source:$("#f-src").value.trim(),createdAt:r.createdAt||new Date().toISOString()};
@@ -712,9 +713,33 @@ async function startCloud(cfg){
     $("#gate").hidden=true; live=true; canWrite=true;
     $("#status").textContent="Shared"; $("#signOutBtn").hidden=false; $("#signOutBtn").textContent=`Sign out (${u.email})`;
     const onErr=e=>{ if(e.code==="denied") showGate("denied"); else toast("Lost connection. Changes will sync when you're back online."); };
-    unsubs.push(db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();},onErr));
+    unsubs.push(db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();openShare();},onErr));
     unsubs.push(db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();},onErr));
   });
+}
+
+/* ---------- recipes shared from other apps (Android share sheet) ---------- */
+// The manifest's share_target opens ./?title=…&text=…&url=…
+function takeShare(){
+  let q; try{q=new URLSearchParams(location.search);}catch{return null;}
+  const title=q.get("title")||"", text=q.get("text")||"", url0=q.get("url")||"";
+  if(!title&&!text&&!url0) return null;
+  try{history.replaceState(null,"",location.pathname+location.hash);}catch{}
+  const url=url0||(text.match(/https?:\/\/\S+/)||[""])[0];
+  let name=(title||text.replace(url,"")).replace(/\s+/g," ").trim();
+  name=name.split(/\s+[|•–—]\s+|\s+-\s+/)[0].replace(/\s*(recipe)$/i,"").trim();   // drop " | Site name" and a trailing "Recipe"
+  if(/^https?:\/\//.test(name)) name="";
+  return {title:name.slice(0,140),source:url};
+}
+let pendingShare=takeShare();
+function openShare(){
+  if(!pendingShare||!canWrite) return;
+  const sh=pendingShare; pendingShare=null; setView("recipes");
+  const norm=u=>u.replace(/[#?].*$/,"").replace(/\/$/,"").toLowerCase();
+  const dup=sh.source&&recipes.find(r=>r.source&&norm(r.source)===norm(sh.source));
+  if(dup){showRecipe(dup.id);toast("You already have this recipe.");return;}
+  editRecipe(null,sh);
+  toast(sh.source?"Link saved. Add the ingredients from the recipe page.":"Fill in the rest of the recipe.");
 }
 
 /* ---------- boot ---------- */
@@ -723,7 +748,7 @@ window.addEventListener("hashchange",()=>setView(location.hash==="#list"?"list":
 render();
 (async()=>{
   const c=window.claude;
-  const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg,"rb-local-notice"); loadLocal(); };
+  const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg,"rb-local-notice"); loadLocal(); openShare(); };
   if(!c||!c.use){
     if(window.FIREBASE_CONFIG){ startCloud(window.FIREBASE_CONFIG); return; }
     localMode("Recipes and lists are saved on this device only. Use Copy, Email or Text to share a list."); return;
