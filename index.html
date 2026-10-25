@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Our Recipe Box</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky header with two views (library grid / grocery list); dialogs for recipe detail and editing */
+:root{
+  --bg:#f3f5f1; --surface:#ffffff; --sunk:#e8ece5; --line:#d5dbd1;
+  --ink:#1d2621; --muted:#5d6a62; --accent:#2f6b4f; --accent-ink:#ffffff;
+  --mustard:#c99a1e; --mustard-soft:#f6ebc9; --danger:#b23a2b;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151a17; --surface:#1d2420; --sunk:#252d28; --line:#33403a;
+  --ink:#e6ece7; --muted:#9aa9a0; --accent:#6fbf94; --accent-ink:#0f1a14;
+  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151a17; --surface:#1d2420; --sunk:#252d28; --line:#33403a;
+  --ink:#e6ece7; --muted:#9aa9a0; --accent:#6fbf94; --accent-ink:#0f1a14;
+  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand h1{font-size:1.5rem;font-weight:700;letter-spacing:-.01em}
+.brand small{color:var(--muted);font-size:.85rem}
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:999px}
+.tab{border:0;background:none;padding:7px 14px;border-radius:999px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.count{font-family:var(--f-mono);font-size:.75rem;background:var(--mustard);color:#1d1a10;border-radius:999px;padding:0 7px;min-width:20px;text-align:center}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--danger)}
+.btn.small{padding:4px 10px;font-size:.88rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+main{padding-block:20px 60px}
+.notice{background:var(--mustard-soft);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.search{flex:1 1 240px;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.filters{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chiprow .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);width:64px;flex:none}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 11px;font-size:.88rem}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card.picked{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card .meta{display:flex;gap:10px;font-size:.8rem;color:var(--muted);font-family:var(--f-mono);flex-wrap:wrap}
+.card h3{font-size:1.15rem;font-weight:700}
+.card h3 button{all:unset;cursor:pointer}
+.card h3 button:hover{text-decoration:underline;text-underline-offset:3px}
+.card h3 button:focus-visible{outline:2px solid var(--accent)}
+.tags{display:flex;gap:5px;flex-wrap:wrap}
+.tag{font-size:.75rem;background:var(--sunk);border-radius:4px;padding:1px 7px;color:var(--muted)}
+.tag.ex{background:var(--mustard-soft);color:var(--ink)}
+.card .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px}
+.empty{border:2px dashed var(--line);border-radius:var(--r);padding:40px 20px;text-align:center;color:var(--muted)}
+.empty h2{color:var(--ink);font-size:1.3rem;margin-bottom:6px}
+
+/* grocery view */
+.glayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:24px;align-items:start}
+@media (max-width:760px){.glayout{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel h2{font-size:1.15rem;margin-bottom:10px}
+.meal{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.meal:first-of-type{border-top:0}
+.meal .nm{flex:1;min-width:0;font-weight:700}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px}
+.stepper button{border:0;background:none;width:28px;height:28px;font-weight:700}
+.stepper span{font-family:var(--f-mono);font-size:.85rem;min-width:56px;text-align:center}
+.aisle{margin-top:14px}
+.aisle h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-family:var(--f-body);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:4px}
+.item{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.item input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+.item .q{font-family:var(--f-mono);font-size:.88rem;min-width:84px;color:var(--accent);flex:none;font-variant-numeric:tabular-nums}
+.item .n{flex:1;min-width:0}
+.item .from{display:block;font-size:.78rem;color:var(--muted)}
+.item.done .n,.item.done .q{text-decoration:line-through;opacity:.5}
+.share{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.addextra{display:flex;gap:8px;margin-top:14px}
+.addextra input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.hint{font-size:.85rem;color:var(--muted)}
+
+/* overlay */
+.overlay{position:fixed;inset:0;background:rgb(10 15 12 / .55);z-index:20;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:max(24px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--surface);border-radius:14px;width:100%;max-width:680px;padding:22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.sheet h2{font-size:1.6rem}
+.ing{list-style:none;padding:0;margin:0}
+.ing li{display:flex;gap:10px;padding:5px 0;border-bottom:1px dotted var(--line)}
+.ing .q{font-family:var(--f-mono);font-size:.88rem;min-width:84px;color:var(--accent)}
+.steps{white-space:pre-wrap;margin:0;line-height:1.6;max-width:65ch}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form .full{grid-column:1/-1}
+@media (max-width:520px){.form{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%}
+.field textarea{resize:vertical;min-height:110px}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:30;font-weight:700}
+.copybox{width:100%;min-height:160px;font-family:var(--f-mono);font-size:.85rem;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+</style>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand"><h1>Our Recipe Box</h1><small id="status">Loading…</small></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-recipes" aria-selected="true" data-view="recipes">Recipes</button>
+      <button class="tab" role="tab" id="tab-list" aria-selected="false" data-view="list">Grocery list <span class="count" id="mealcount">0</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="notice" id="notice" hidden></div>
+
+  <section id="view-recipes">
+    <div class="tools">
+      <input class="search" id="q" type="search" placeholder="Search recipes or ingredients" aria-label="Search recipes">
+      <button class="btn primary" id="addBtn">+ Add recipe</button>
+    </div>
+    <div class="filters">
+      <div class="chiprow" id="f-meal"><span class="lbl">Meal</span></div>
+      <div class="chiprow" id="f-cuisine"><span class="lbl">Cuisine</span></div>
+      <div class="chiprow" id="f-tag"><span class="lbl">Tags</span></div>
+    </div>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <section id="view-list" hidden>
+    <div class="glayout">
+      <div class="panel">
+        <h2>Meals we picked</h2>
+        <div id="meals"></div>
+        <div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn small ghost" id="clearMeals">Clear all meals</button></div>
+      </div>
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <h2>Shopping list</h2>
+          <span class="hint" id="listcount"></span>
+        </div>
+        <div class="share">
+          <button class="btn small primary" id="copyList">Copy list</button>
+          <button class="btn small" id="emailList">Email</button>
+          <button class="btn small" id="textList">Text</button>
+          <button class="btn small" id="saveList">Save as file</button>
+          <button class="btn small ghost" id="uncheck">Uncheck all</button>
+        </div>
+        <div id="glist"></div>
+        <form class="addextra" id="extraForm">
+          <input id="extraIn" placeholder="Add something else (paper towels, coffee…)" aria-label="Add an extra item">
+          <button class="btn small" type="submit">Add</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="overlay" class="overlay" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script type="application/json" id="examples">[{"id":"ex-fajitas","title":"Sheet-Pan Chicken Fajitas","mealType":"Dinner","cuisine":"Mexican","servings":4,"time":"35 min","tags":["Quick","Kid-friendly","Example"],"ingredients":[{"qty":1.5,"unit":"lb","name":"chicken breast","note":"sliced","raw":"1 1/2 lb chicken breast, sliced"},{"qty":2,"unit":"","name":"bell peppers","note":"sliced","raw":"2 bell peppers, sliced"},{"qty":1,"unit":"","name":"red onion","note":"sliced","raw":"1 red onion, sliced"},{"qty":2,"unit":"tbsp","name":"olive oil","note":"","raw":"2 tbsp olive oil"},{"qty":2,"unit":"tsp","name":"chili powder","note":"","raw":"2 tsp chili powder"},{"qty":1,"unit":"tsp","name":"cumin","note":"","raw":"1 tsp cumin"},{"qty":1,"unit":"tsp","name":"salt","note":"","raw":"1 tsp salt"},{"qty":8,"unit":"","name":"flour tortillas","note":"","raw":"8 flour tortillas"},{"qty":1,"unit":"","name":"lime","note":"","raw":"1 lime"},{"qty":0.5,"unit":"cup","name":"sour cream","note":"","raw":"1/2 cup sour cream"}],"steps":"Heat oven to 425°F.\nToss chicken, peppers and onion with oil and spices on a sheet pan.\nRoast 20–25 minutes, stirring once.\nSqueeze lime over and serve in warm tortillas with sour cream.","source":"","createdAt":"2026-10-25T14:00:00Z"},{"id":"ex-pasta","title":"Lemon Garlic Spaghetti","mealType":"Dinner","cuisine":"Italian","servings":4,"time":"20 min","tags":["Vegetarian","Quick","Example"],"ingredients":[{"qty":1,"unit":"lb","name":"spaghetti","note":"","raw":"1 lb spaghetti"},{"qty":4,"unit":"clove","name":"garlic","note":"thinly sliced","raw":"4 cloves garlic, thinly sliced"},{"qty":0.25,"unit":"cup","name":"olive oil","note":"","raw":"1/4 cup olive oil"},{"qty":1,"unit":"","name":"lemon","note":"zested and juiced","raw":"1 lemon, zested and juiced"},{"qty":0.5,"unit":"cup","name":"parmesan","note":"grated","raw":"1/2 cup parmesan, grated"},{"qty":2,"unit":"cup","name":"spinach","note":"","raw":"2 cups spinach"},{"qty":null,"unit":"","name":"Salt","note":"","raw":"Salt"},{"qty":null,"unit":"","name":"Black pepper","note":"","raw":"Black pepper"}],"steps":"Cook spaghetti in salted water; save 1 cup pasta water.\nWarm oil and garlic until fragrant.\nToss pasta with garlic oil, lemon, spinach, parmesan and splashes of pasta water.","source":"","createdAt":"2026-10-25T14:00:00Z"},{"id":"ex-chili","title":"Weeknight Turkey Chili","mealType":"Dinner","cuisine":"American","servings":6,"time":"45 min","tags":["Make-ahead","Freezer","Example"],"ingredients":[{"qty":1,"unit":"lb","name":"ground turkey","note":"","raw":"1 lb ground turkey"},{"qty":1,"unit":"","name":"onion","note":"diced","raw":"1 onion, diced"},{"qty":3,"unit":"clove","name":"garlic","note":"minced","raw":"3 cloves garlic, minced"},{"qty":1,"unit":"","name":"bell pepper","note":"diced","raw":"1 bell pepper, diced"},{"qty":2,"unit":"can","name":"black beans","note":"drained","raw":"2 cans black beans, drained"},{"qty":1,"unit":"can","name":"crushed tomatoes","note":"","raw":"1 can crushed tomatoes"},{"qty":2,"unit":"tbsp","name":"chili powder","note":"","raw":"2 tbsp chili powder"},{"qty":1,"unit":"tsp","name":"cumin","note":"","raw":"1 tsp cumin"},{"qty":1,"unit":"tbsp","name":"olive oil","note":"","raw":"1 tbsp olive oil"},{"qty":1,"unit":"cup","name":"cheddar","note":"shredded","raw":"1 cup cheddar, shredded"}],"steps":"Brown turkey in oil with onion, garlic and pepper.\nAdd spices, beans and tomatoes.\nSimmer 25 minutes. Top with cheddar.","source":"","createdAt":"2026-10-25T14:00:00Z"},{"id":"ex-oats","title":"Overnight Oats","mealType":"Breakfast","cuisine":"","servings":2,"time":"5 min + overnight","tags":["Vegetarian","Make-ahead","Example"],"ingredients":[{"qty":1,"unit":"cup","name":"rolled oats","note":"","raw":"1 cup rolled oats"},{"qty":1,"unit":"cup","name":"milk","note":"","raw":"1 cup milk"},{"qty":0.5,"unit":"cup","name":"yogurt","note":"","raw":"1/2 cup yogurt"},{"qty":1,"unit":"tbsp","name":"honey","note":"","raw":"1 tbsp honey"},{"qty":1,"unit":"cup","name":"berries","note":"","raw":"1 cup berries"}],"steps":"Stir oats, milk, yogurt and honey in a jar.\nRefrigerate overnight. Top with berries.","source":"","createdAt":"2026-10-25T14:00:00Z"},{"id":"ex-salad","title":"Chickpea Cucumber Salad","mealType":"Side","cuisine":"Mediterranean","servings":4,"time":"15 min","tags":["Vegan","Quick","Gluten-free","Example"],"ingredients":[{"qty":1,"unit":"can","name":"chickpeas","note":"drained","raw":"1 can chickpeas, drained"},{"qty":1,"unit":"","name":"cucumber","note":"diced","raw":"1 cucumber, diced"},{"qty":1,"unit":"cup","name":"cherry tomatoes","note":"halved","raw":"1 cup cherry tomatoes, halved"},{"qty":0.5,"unit":"","name":"red onion","note":"finely diced","raw":"1/2 red onion, finely diced"},{"qty":0.25,"unit":"cup","name":"parsley","note":"chopped","raw":"1/4 cup parsley, chopped"},{"qty":3,"unit":"tbsp","name":"olive oil","note":"","raw":"3 tbsp olive oil"},{"qty":1,"unit":"","name":"lemon","note":"juiced","raw":"1 lemon, juiced"},{"qty":null,"unit":"","name":"Salt","note":"","raw":"Salt"}],"steps":"Combine everything in a bowl and season to taste.","source":"","createdAt":"2026-10-25T14:00:00Z"}]</script>
+<script>
+const MEALS=["Breakfast","Lunch","Dinner","Side","Dessert","Snack"];
+const TAGS=["Vegetarian","Vegan","Quick","Make-ahead","Kid-friendly","Freezer","Gluten-free","Slow cooker"];
+const AISLES=[
+ ["Spices",/\b(salt|black pepper|peppercorn|cumin|paprika|cinnamon|oregano|chili powder|chili flakes|red pepper flakes|curry powder|turmeric|nutmeg|spice|bay lea|cayenne|garam|vanilla)\b/],
+ ["Produce",/\b(onion|garlic|shallot|tomato|potato|carrot|celery|lettuce|spinach|kale|cabbage|pepper|bell|jalape|chil[ie]|lemon|lime|orange|apple|banana|berr|avocado|cucumber|zucchini|squash|mushroom|herb|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallion|green onion|leek|broccoli|cauliflower|corn|pea|bean sprout|eggplant|sweet potato|fruit|grape|mango|pear|arugula)\b/],
+ ["Meat & Fish",/\b(chicken|beef|pork|bacon|sausage|turkey|lamb|steak|ground|salmon|tuna|shrimp|fish|cod|prosciutto|ham|chorizo)\b/],
+ ["Dairy & Eggs",/\b(milk|butter|cream|cheese|parmesan|mozzarella|cheddar|feta|yogurt|yoghurt|egg|eggs|sour cream|ricotta)\b/],
+ ["Bakery",/\b(bread|bun|tortilla|pita|baguette|roll|naan|bagel)\b/],
+ ["Frozen",/\bfrozen\b/],
+ ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodle|oil|vinegar|soy|sauce|stock|broth|can|canned|bean|lentil|chickpea|oat|honey|syrup|baking|yeast|nut|almond|peanut|tahini|mustard|ketchup|mayo|coconut|tomato paste|chocolate|cocoa|breadcrumb|cornstarch|stock)\b/],
+];
+const UNITS={cup:"cup",cups:"cup",c:"cup",tablespoon:"tbsp",tablespoons:"tbsp",tbsp:"tbsp",tbs:"tbsp",T:"tbsp",teaspoon:"tsp",teaspoons:"tsp",tsp:"tsp",t:"tsp",g:"g",gram:"g",grams:"g",kg:"kg",ml:"ml",l:"l",liter:"l",litre:"l",oz:"oz",ounce:"oz",ounces:"oz",lb:"lb",lbs:"lb",pound:"lb",pounds:"lb",clove:"clove",cloves:"clove",can:"can",cans:"can",tin:"can",tins:"can",pinch:"pinch",bunch:"bunch",bunches:"bunch",slice:"slice",slices:"slice",stick:"stick",sticks:"stick",package:"pkg",packages:"pkg",pkg:"pkg",jar:"jar",jars:"jar",head:"head",heads:"head",sprig:"sprig",sprigs:"sprig",handful:"handful"};
+const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
+
+let db=null, user=null, canWrite=true, live=false;
+let recipes=[];            // [{id,...}]
+let plan={meals:{},checked:{},extras:[]};
+let filters={meal:null,cuisine:null,tag:null,q:""};
+let view="recipes";
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- parsing ---------- */
+function parseQty(s){
+  s=s.trim();
+  let m=s.match(/^(\d+)\s+(\d+)\/(\d+)/); if(m) return [+m[1]+m[2]/m[3], m[0]];
+  m=s.match(/^(\d+)\s*([½¼¾⅓⅔⅛])/); if(m) return [+m[1]+FRAC[m[2]], m[0]];
+  m=s.match(/^(\d+)\/(\d+)/); if(m) return [m[1]/m[2], m[0]];
+  m=s.match(/^(\d+(?:\.\d+)?)(?:\s*[-–]\s*\d+(?:\.\d+)?)?/); if(m) return [+m[1], m[0]];
+  m=s.match(/^[½¼¾⅓⅔⅛]/); if(m) return [FRAC[m[0]], m[0]];
+  return [null,""];
+}
+function parseLine(raw){
+  let line=raw.replace(/^[-*•\s]+/,"").trim(); if(!line) return null;
+  const [qty,used]=parseQty(line);
+  let rest=line.slice(used.length).trim();
+  let unit="";
+  const um=rest.match(/^([A-Za-z]+)\.?\b\s*/);
+  if(um && UNITS[um[1]]!==undefined && (qty!==null || ["pinch","bunch","handful"].includes(UNITS[um[1]]))){unit=UNITS[um[1]];rest=rest.slice(um[0].length);}
+  rest=rest.replace(/^of\s+/i,"");
+  let name=rest, note="";
+  const ci=rest.search(/[,(]/); if(ci>0){name=rest.slice(0,ci).trim();note=rest.slice(ci).replace(/^[,\s]+/,"").trim();}
+  return {qty,unit,name:name||rest,note,raw:line};
+}
+function fmtQty(q){
+  if(q==null) return "";
+  const whole=Math.floor(q+1e-6), f=q-whole;
+  const fr=[[0,""],[.125,"⅛"],[.25,"¼"],[1/3,"⅓"],[.5,"½"],[2/3,"⅔"],[.75,"¾"],[1,""]];
+  let best=fr[0],bd=9; for(const x of fr){const d=Math.abs(f-x[0]);if(d<bd){bd=d;best=x}}
+  if(bd>.04) return (Math.round(q*100)/100).toString();
+  const w=whole+(best[0]===1?1:0);
+  return (w? w+(best[1]?" ":""):"")+best[1] || "0";
+}
+const aisleOf=n=>{const s=n.toLowerCase(); for(const [a,re] of AISLES) if(re.test(s)) return a; return "Other";};
+const keyOf=(name,unit)=>(name.toLowerCase().replace(/[^a-z ]/g,"").trim().replace(/(es|s)$/,"")+"|"+unit);
+
+/* ---------- grocery aggregation ---------- */
+function buildList(){
+  const map=new Map();
+  for(const [rid,m] of Object.entries(plan.meals)){
+    const r=recipes.find(x=>x.id===rid); if(!r) continue;
+    const factor=(m.servings||r.servings||1)/(r.servings||1);
+    for(const ing of r.ingredients||[]){
+      const k=keyOf(ing.name,ing.unit);
+      let e=map.get(k);
+      if(!e){e={key:k,name:ing.name,unit:ing.unit,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name)};map.set(k,e);}
+      if(ing.qty==null) e.noQty=true; else e.qty=(e.qty||0)+ing.qty*factor;
+      e.from.add(r.title);
+    }
+  }
+  for(const x of plan.extras||[]) map.set("x:"+x.id,{key:"x:"+x.id,name:x.text,unit:"",qty:null,from:new Set(),aisle:"Extras",extra:true});
+  const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Other","Extras"];
+  const groups={}; for(const e of map.values()) (groups[e.aisle]??=[]).push(e);
+  return order.filter(a=>groups[a]).map(a=>[a,groups[a].sort((x,y)=>x.name.localeCompare(y.name))]);
+}
+const PLURAL={cup:"cups",clove:"cloves",can:"cans",slice:"slices",stick:"sticks",jar:"jars",head:"heads",sprig:"sprigs",bunch:"bunches"};
+const unitText=(u,q)=>q>1&&PLURAL[u]?PLURAL[u]:u;
+const qtyText=e=>[fmtQty(e.qty),unitText(e.unit,e.qty)].filter(Boolean).join(" ");
+function listText(onlyOpen=true){
+  const groups=buildList(); const lines=["Grocery list"];
+  const meals=Object.keys(plan.meals).map(id=>recipes.find(r=>r.id===id)?.title).filter(Boolean);
+  if(meals.length) lines.push("For: "+meals.join(", "));
+  for(const [a,items] of groups){
+    const its=items.filter(e=>!onlyOpen||!plan.checked[e.key]); if(!its.length) continue;
+    lines.push("",a.toUpperCase());
+    for(const e of its) lines.push("[ ] "+[qtyText(e),e.name].filter(Boolean).join(" "));
+  }
+  return lines.join("\n");
+}
+
+/* ---------- persistence ---------- */
+// Outside claude.ai (or signed out) the app keeps its data in this browser only.
+const LOCAL_KEY="recipe-box-v1";
+function persistLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({recipes,plan}));}catch{}}
+function loadLocal(){
+  let d=null; try{d=JSON.parse(localStorage.getItem(LOCAL_KEY)||"null");}catch{}
+  if(d&&Array.isArray(d.recipes)){recipes=d.recipes;plan={meals:{},checked:{},extras:[],...d.plan};}
+  else {recipes=JSON.parse(document.getElementById("examples").textContent);persistLocal();}
+  render();
+}
+let planChain=Promise.resolve();
+function savePlan(){
+  render();
+  if(!live){persistLocal();return;}
+  if(!canWrite) return;
+  const body=JSON.parse(JSON.stringify(plan));
+  planChain=planChain.then(()=>db.doc("plan/current").set(body)).catch(e=>writeFail(e));
+}
+async function saveRecipe(r){
+  const {id,...body}=r;
+  if(!live){ const i=recipes.findIndex(x=>x.id===id); if(i>=0) recipes[i]=r; else recipes.push(r); persistLocal(); render(); return; }
+  try{ await db.collection("recipes").doc(id).set(body); }catch(e){ writeFail(e); }
+}
+async function deleteRecipe(id){
+  delete plan.meals[id];
+  if(!live){ recipes=recipes.filter(r=>r.id!==id); savePlan(); return; }
+  try{ await db.collection("recipes").doc(id).delete(); savePlan(); }catch(e){ writeFail(e); }
+}
+function writeFail(e){
+  if(e&&e.code==="invalid_argument"){canWrite=false;showNotice("You can view this recipe box, but you don't have permission to change it. Ask the owner to make you a Contributor.");}
+  else if(e&&e.code==="quota_exceeded") toast("Storage is full. Delete a few recipes and try again.");
+  else toast("Couldn't save that change. Try again in a moment.");
+  render();
+}
+function showNotice(t){const n=$("#notice");n.textContent=t;n.hidden=false;}
+
+/* ---------- rendering ---------- */
+function chip(group,val,cur){return `<button class="chip" data-f="${group}" data-v="${esc(val)}" aria-pressed="${cur===val}">${esc(val)}</button>`;}
+function renderFilters(){
+  const cuisines=[...new Set(recipes.map(r=>r.cuisine).filter(Boolean))].sort();
+  const tags=[...new Set(recipes.flatMap(r=>r.tags||[]))].sort();
+  const usedMeals=MEALS.filter(m=>recipes.some(r=>r.mealType===m));
+  $("#f-meal").innerHTML='<span class="lbl">Meal</span>'+usedMeals.map(m=>chip("meal",m,filters.meal)).join("");
+  $("#f-cuisine").innerHTML='<span class="lbl">Cuisine</span>'+cuisines.map(c=>chip("cuisine",c,filters.cuisine)).join("");
+  $("#f-tag").innerHTML='<span class="lbl">Tags</span>'+tags.map(t=>chip("tag",t,filters.tag)).join("");
+  $("#f-meal").hidden=!usedMeals.length; $("#f-cuisine").hidden=!cuisines.length; $("#f-tag").hidden=!tags.length;
+}
+function filtered(){
+  const q=filters.q.toLowerCase();
+  return recipes.filter(r=>(!filters.meal||r.mealType===filters.meal)&&(!filters.cuisine||r.cuisine===filters.cuisine)&&(!filters.tag||(r.tags||[]).includes(filters.tag))
+    &&(!q||r.title.toLowerCase().includes(q)||(r.ingredients||[]).some(i=>i.name.toLowerCase().includes(q)))).sort((a,b)=>a.title.localeCompare(b.title));
+}
+function renderGrid(){
+  const g=$("#grid");
+  if(!recipes.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>No recipes yet</h2><p>Add your first recipe with <b>+ Add recipe</b>. Paste the ingredients one per line and the app sorts them into a shopping list.</p></div>`;return;}
+  const list=filtered();
+  if(!list.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>Nothing matches</h2><p>Try a different search or clear a filter.</p></div>`;return;}
+  g.innerHTML=list.map(r=>{
+    const picked=!!plan.meals[r.id];
+    const ex=(r.tags||[]).includes("Example");
+    return `<article class="card${picked?" picked":""}">
+      <div class="meta">${esc(r.mealType||"")}${r.cuisine?` · ${esc(r.cuisine)}`:""}${r.time?` · ${esc(r.time)}`:""}</div>
+      <h3><button data-open="${r.id}">${esc(r.title)}</button></h3>
+      <div class="tags">${(r.tags||[]).map(t=>`<span class="tag${t==="Example"?" ex":""}">${esc(t)}</span>`).join("")}</div>
+      <div class="foot"><span class="hint">${(r.ingredients||[]).length} ingredients · serves ${r.servings||"?"}</span>
+      <button class="btn small${picked?" primary":""}" data-pick="${r.id}" aria-pressed="${picked}">${picked?"✓ On the list":"+ Add to meals"}</button></div>
+    </article>`;}).join("");
+}
+function renderGrocery(){
+  const ids=Object.keys(plan.meals).filter(id=>recipes.some(r=>r.id===id));
+  $("#meals").innerHTML=ids.length? ids.map(id=>{const r=recipes.find(x=>x.id===id);const s=plan.meals[id].servings||r.servings||1;
+    return `<div class="meal"><div class="nm">${esc(r.title)}</div>
+      <div class="stepper" aria-label="Servings"><button data-srv="${id}" data-d="-1" aria-label="Fewer servings">−</button><span>${s} serv</span><button data-srv="${id}" data-d="1" aria-label="More servings">+</button></div>
+      <button class="btn small ghost" data-pick="${id}" aria-label="Remove ${esc(r.title)}">✕</button></div>`;}).join("")
+    : `<p class="hint">No meals picked yet. Go to <b>Recipes</b> and tap <b>+ Add to meals</b> on what you want to cook.</p>`;
+  $("#clearMeals").hidden=!ids.length;
+  const groups=buildList(); let total=0,open=0;
+  $("#glist").innerHTML=groups.length? groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{total++;const done=!!plan.checked[e.key];if(!done)open++;
+    return `<label class="item${done?" done":""}"><input type="checkbox" data-chk="${esc(e.key)}" ${done?"checked":""}><span class="q">${esc(qtyText(e))}${e.noQty&&e.qty!=null?" +":""}</span><span class="n">${esc(e.name)}${e.extra?"":`<span class="from">${esc([...e.from].join(", "))}</span>`}</span>${e.extra?`<button class="btn small ghost" data-rmx="${esc(e.key.slice(2))}" aria-label="Remove">✕</button>`:""}</label>`;}).join("")}</div>`).join("")
+    : `<p class="hint" style="margin-top:14px">Your list fills in as you pick meals. You can also add extra items below.</p>`;
+  $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
+  $("#mealcount").textContent=ids.length;
+}
+function render(){ renderFilters(); renderGrid(); renderGrocery();
+  $("#addBtn").disabled=!canWrite; }
+
+function setView(v){view=v;
+  $("#view-recipes").hidden=v!=="recipes"; $("#view-list").hidden=v!=="list";
+  $("#tab-recipes").setAttribute("aria-selected",v==="recipes"); $("#tab-list").setAttribute("aria-selected",v==="list");
+  try{history.replaceState(null,"","#"+v)}catch{}
+}
+
+/* ---------- dialogs ---------- */
+function openSheet(html){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
+function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";}
+$("#overlay").addEventListener("click",e=>{if(e.target.id==="overlay")closeSheet();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#overlay").hidden)closeSheet();});
+
+function showRecipe(id){
+  const r=recipes.find(x=>x.id===id); if(!r) return;
+  const picked=!!plan.meals[id];
+  openSheet(`<div class="top"><div><div class="hint">${esc(r.mealType||"")}${r.cuisine?" · "+esc(r.cuisine):""}${r.time?" · "+esc(r.time):""} · serves ${r.servings||"?"}</div><h2>${esc(r.title)}</h2></div><button class="btn ghost" data-close aria-label="Close">✕</button></div>
+    <div class="tags">${(r.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
+    <h3>Ingredients</h3><ul class="ing">${(r.ingredients||[]).map(i=>`<li><span class="q">${esc([fmtQty(i.qty),unitText(i.unit,i.qty)].filter(Boolean).join(" "))}</span><span>${esc(i.name)}${i.note?`<span class="hint">, ${esc(i.note)}</span>`:""}</span></li>`).join("")}</ul>
+    ${r.steps?`<h3>Steps</h3><p class="steps">${esc(r.steps)}</p>`:""}
+    ${r.source?`<p class="hint">Source: ${/^https?:\/\//.test(r.source)?`<a href="${esc(r.source)}" target="_blank" rel="noopener">${esc(r.source)}</a>`:esc(r.source)}</p>`:""}
+    <div class="actions">
+      ${canWrite?`<button class="btn danger ghost" data-del="${id}">Delete</button><button class="btn" data-edit="${id}">Edit</button>`:""}
+      <button class="btn primary" data-pick="${id}" data-close>${picked?"Remove from meals":"+ Add to meals"}</button>
+    </div>`);
+}
+function editRecipe(id){
+  const r=id?recipes.find(x=>x.id===id):{title:"",mealType:"Dinner",cuisine:"",tags:[],servings:4,time:"",ingredients:[],steps:"",source:""};
+  const cuisines=[...new Set(recipes.map(x=>x.cuisine).filter(Boolean))];
+  const allTags=[...new Set([...TAGS,...recipes.flatMap(x=>x.tags||[])])].filter(t=>t!=="Example");
+  openSheet(`<div class="top"><h2>${id?"Edit recipe":"Add a recipe"}</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
+  <form id="rform" class="form">
+    <div class="field full"><label for="f-title">Name</label><input id="f-title" required value="${esc(r.title)}" placeholder="Grandma's chicken soup"></div>
+    <div class="field"><label for="f-meal">Meal</label><select id="f-meal">${MEALS.map(m=>`<option ${m===r.mealType?"selected":""}>${m}</option>`).join("")}</select></div>
+    <div class="field"><label for="f-cuisine">Cuisine</label><input id="f-cuisine" list="cuisines" value="${esc(r.cuisine)}" placeholder="Italian, Mexican…"><datalist id="cuisines">${cuisines.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
+    <div class="field"><label for="f-serv">Serves</label><input id="f-serv" type="number" min="1" value="${r.servings||4}"></div>
+    <div class="field"><label for="f-time">Time</label><input id="f-time" value="${esc(r.time)}" placeholder="30 min"></div>
+    <div class="field full"><label>Tags</label><div class="chiprow" id="f-tags">${allTags.map(t=>`<button type="button" class="chip" data-tg="${esc(t)}" aria-pressed="${(r.tags||[]).includes(t)}">${esc(t)}</button>`).join("")}</div>
+      <input id="f-newtag" placeholder="Add your own tag and press Enter" style="margin-top:6px"></div>
+    <div class="field full"><label for="f-ing">Ingredients, one per line</label><textarea id="f-ing" rows="8" placeholder="2 cups flour&#10;1 1/2 lb chicken thighs&#10;3 cloves garlic, minced&#10;Salt">${esc((r.ingredients||[]).map(i=>i.raw).join("\n"))}</textarea>
+      <span class="hint">Start each line with the amount and unit if there is one. Matching ingredients across meals are combined.</span></div>
+    <div class="field full"><label for="f-steps">Steps</label><textarea id="f-steps" rows="6">${esc(r.steps)}</textarea></div>
+    <div class="field full"><label for="f-src">Source or link</label><input id="f-src" value="${esc(r.source)}"></div>
+    <div class="actions full"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">${id?"Save changes":"Add recipe"}</button></div>
+  </form>`);
+  const form=$("#rform");
+  form.querySelector("#f-tags").addEventListener("click",e=>{const b=e.target.closest("[data-tg]");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true");});
+  form.querySelector("#f-newtag").addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const v=e.target.value.trim();if(!v)return;
+    form.querySelector("#f-tags").insertAdjacentHTML("beforeend",`<button type="button" class="chip" data-tg="${esc(v)}" aria-pressed="true">${esc(v)}</button>`);e.target.value="";});
+  form.addEventListener("submit",async e=>{e.preventDefault();
+    const tags=[...form.querySelectorAll('[data-tg][aria-pressed="true"]')].map(b=>b.dataset.tg);
+    if(id&&(r.tags||[]).includes("Example")) tags.push("Example");
+    const rec={id:id||("r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+      title:$("#f-title").value.trim(),mealType:$("#f-meal").value,cuisine:$("#f-cuisine").value.trim(),
+      servings:Math.max(1,parseInt($("#f-serv").value)||1),time:$("#f-time").value.trim(),tags,
+      ingredients:$("#f-ing").value.split("\n").map(parseLine).filter(Boolean),
+      steps:$("#f-steps").value.trim(),source:$("#f-src").value.trim(),createdAt:r.createdAt||new Date().toISOString()};
+    if(!rec.title) return;
+    closeSheet(); await saveRecipe(rec); toast(id?"Recipe saved":"Recipe added");
+  });
+}
+function copyFallback(text){
+  openSheet(`<div class="top"><h2>Copy your list</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
+    <p class="hint">Your browser blocked automatic copying. The list is selected below; copy it with Ctrl+C or ⌘C (long-press on a phone).</p>
+    <textarea class="copybox" id="cb" readonly>${esc(text)}</textarea>`);
+  const t=$("#cb"); t.focus(); t.select();
+}
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200);}
+
+/* ---------- events ---------- */
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button,[data-open]"); if(!t) return;
+  if(t.dataset.view) return setView(t.dataset.view);
+  if(t.dataset.f){const k=t.dataset.f;filters[k]=filters[k]===t.dataset.v?null:t.dataset.v;return render();}
+  if(t.dataset.open) return showRecipe(t.dataset.open);
+  if(t.dataset.pick){ if(!canWrite) return; const id=t.dataset.pick;
+    if(plan.meals[id]) delete plan.meals[id]; else {const r=recipes.find(x=>x.id===id);plan.meals[id]={servings:r?.servings||1};toast("Added to this week's meals");}
+    savePlan(); }
+  if(t.dataset.srv){ if(!canWrite) return; const m=plan.meals[t.dataset.srv]; m.servings=Math.max(1,(m.servings||1)+ +t.dataset.d); savePlan(); }
+  if(t.dataset.edit) return editRecipe(t.dataset.edit);
+  if(t.dataset.del){ if(t.dataset.armed){closeSheet();await deleteRecipe(t.dataset.del);toast("Recipe deleted");return;}
+    t.dataset.armed="1"; t.textContent="Tap again to delete"; return; }
+  if(t.dataset.rmx){ e.preventDefault(); plan.extras=plan.extras.filter(x=>x.id!==t.dataset.rmx); delete plan.checked["x:"+t.dataset.rmx]; savePlan(); }
+  if(t.hasAttribute("data-close")) closeSheet();
+});
+document.addEventListener("change",e=>{const k=e.target.dataset?.chk; if(k==null) return;
+  if(!canWrite){e.target.checked=!e.target.checked;return;}
+  if(e.target.checked) plan.checked[k]=true; else delete plan.checked[k]; savePlan();});
+$("#addBtn").onclick=()=>editRecipe(null);
+$("#q").addEventListener("input",e=>{filters.q=e.target.value;renderGrid();});
+$("#clearMeals").onclick=()=>{plan.meals={};plan.checked={};savePlan();};
+$("#uncheck").onclick=()=>{plan.checked={};savePlan();};
+$("#extraForm").addEventListener("submit",e=>{e.preventDefault();const v=$("#extraIn").value.trim();if(!v||!canWrite)return;
+  plan.extras=[...(plan.extras||[]),{id:Date.now().toString(36),text:v}];$("#extraIn").value="";savePlan();});
+$("#copyList").onclick=()=>{const text=listText();
+  try{navigator.clipboard.writeText(text).then(()=>toast("List copied. Paste it into a text, email or notes app."),()=>copyFallback(text));}catch{copyFallback(text);}};
+$("#emailList").onclick=()=>{const text=listText();
+  try{navigator.clipboard.writeText(text).catch(()=>{});}catch{}
+  const a=document.createElement("a");a.href="mailto:?subject="+encodeURIComponent("Grocery list")+"&body="+encodeURIComponent(text);a.target="_blank";a.rel="noopener";a.click();
+  toast("Opening your email app. The list is also copied in case it doesn't open.");};
+$("#textList").onclick=()=>{const text=listText();
+  try{navigator.clipboard.writeText(text).catch(()=>{});}catch{}
+  const a=document.createElement("a");a.href="sms:?&body="+encodeURIComponent(text);a.target="_blank";a.rel="noopener";a.click();
+  toast("Opening Messages. The list is also copied in case it doesn't open.");};
+let downloads=null;
+$("#saveList").onclick=async()=>{const text=listText();
+  if(!downloads){ // outside claude.ai: a normal browser download
+    try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download="grocery-list.txt";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+    catch{copyFallback(text);} return;}
+  try{await downloads.save({filename:"grocery-list.txt",data:text});}catch(e){toast("The file wasn't saved.");}};
+
+/* ---------- boot ---------- */
+setView(location.hash==="#list"?"list":"recipes");
+render();
+(async()=>{
+  const c=window.claude;
+  const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg); loadLocal(); };
+  if(!c||!c.use){ localMode("Recipes and lists are saved in this browser only. Use Copy, Email or Text to share a list."); return; }
+  [db,user,downloads]=await Promise.all([c.use("db"),c.use("user"),c.use("downloads")]);
+  if(!db){ localMode("Sign in to Claude to see your shared recipes. Until then, changes are saved in this browser only."); return; }
+  live=true;
+  const w=user?await user.can("data.write"):null; if(w===false){canWrite=false;showNotice("You're viewing this recipe box. Ask the owner to make you a Contributor so you can add recipes and check off groceries.");}
+  $("#status").textContent="Shared";
+  db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();},e=>{if(e.code!=="revoked")toast("Lost connection to your recipes. Reload to reconnect.");});
+  db.doc("plan/current").onSnapshot(s=>{const d=s.data();plan=d?{meals:{...(d.meals||{})},checked:{...(d.checked||{})},extras:[...(d.extras||[])]}:{meals:{},checked:{},extras:[]};render();});
+})();
+</script>
+
+</body>
+</html>
