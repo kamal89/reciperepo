@@ -1,6 +1,6 @@
 // Offline support for Recipe Repo.
 // Bump VERSION whenever app files change so phones pick up the new version.
-const VERSION = "v6";
+const VERSION = "v7";
 const SHELL = `recipe-box-shell-${VERSION}`;
 const RUNTIME = "recipe-box-runtime";
 const SHELL_FILES = [
