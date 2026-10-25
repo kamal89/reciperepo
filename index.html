@@ -245,6 +245,8 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 .regulars .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:2px}
 .regulars .chip{display:inline-flex;align-items:center;gap:4px}
 .regulars .chip .x{border:0;background:none;color:var(--danger);padding:0 0 0 2px;font-weight:700}
+.tagadd{display:flex;gap:6px;margin-top:6px}
+.tagadd input{flex:1;min-width:0}
 .fmtbar{display:flex;gap:6px;flex-wrap:wrap}
 .fmtbar button{font-size:.8rem;padding:2px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
 .fmtbar button b{font-weight:800}
@@ -857,7 +859,7 @@ function editRecipe(id,preset){
     <div class="field"><label for="f-serv">Serves</label><input id="f-serv" type="number" min="1" value="${r.servings||4}"></div>
     <div class="field"><label for="f-time">Time</label><input id="f-time" value="${esc(r.time)}" placeholder="30 min"></div>
     <div class="field full"><label>Tags</label><div class="chiprow" id="f-tags">${allTags.map(t=>`<button type="button" class="chip" data-tg="${esc(t)}" aria-pressed="${(r.tags||[]).includes(t)}">${esc(t)}</button>`).join("")}</div>
-      <input id="f-newtag" placeholder="Add your own tag and press Enter" style="margin-top:6px"></div>
+      <div class="tagadd"><input id="f-newtag" placeholder="Add your own tag" enterkeyhint="done" autocomplete="off" aria-label="New tag"><button type="button" class="btn small" id="f-addtag">+ Add</button></div></div>
     <div class="field full"><label for="f-ing">Ingredients, one per line</label>
       <div class="fmtbar" data-for="f-ing"><button type="button" data-fmt="section">+ Section heading</button></div>
       <textarea id="f-ing" rows="8" placeholder="2 cups flour&#10;1 1/2 lb chicken thighs&#10;3 cloves garlic, minced&#10;Salt">${esc((r.ingredients||[]).map(i=>i.raw).join("\n"))}</textarea>
@@ -872,9 +874,19 @@ function editRecipe(id,preset){
   const form=$("#rform");
   form.addEventListener("click",e=>{const b=e.target.closest("[data-fmt]");if(!b)return;e.preventDefault();applyFmt($("#"+b.parentElement.dataset.for),b.dataset.fmt);});
   form.querySelector("#f-tags").addEventListener("click",e=>{const b=e.target.closest("[data-tg]");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true");});
-  form.querySelector("#f-newtag").addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const v=e.target.value.trim();if(!v)return;
-    form.querySelector("#f-tags").insertAdjacentHTML("beforeend",`<button type="button" class="chip" data-tg="${esc(v)}" aria-pressed="true">${esc(v)}</button>`);e.target.value="";});
+  // New tags: the + Add button, Enter, or a comma. Phone keyboards don't always report Enter, hence the button.
+  const tagIn=form.querySelector("#f-newtag");
+  const addTag=()=>{
+    const v=tagIn.value.replace(/,/g," ").replace(/\s+/g," ").trim().slice(0,30); tagIn.value=""; if(!v) return;
+    const box=form.querySelector("#f-tags"), same=[...box.querySelectorAll("[data-tg]")].find(b=>b.dataset.tg.toLowerCase()===v.toLowerCase());
+    if(same) same.setAttribute("aria-pressed","true");
+    else box.insertAdjacentHTML("beforeend",`<button type="button" class="chip" data-tg="${esc(v)}" aria-pressed="true">${esc(v)}</button>`);
+  };
+  form.querySelector("#f-addtag").addEventListener("click",()=>{addTag();tagIn.focus();});
+  tagIn.addEventListener("keydown",e=>{if(e.key==="Enter"||e.keyCode===13){e.preventDefault();addTag();}});
+  tagIn.addEventListener("input",()=>{if(tagIn.value.includes(","))addTag();});
   form.addEventListener("submit",async e=>{e.preventDefault();
+    if(tagIn.value.trim()) addTag();   // a tag typed but not added still counts
     const tags=[...form.querySelectorAll('[data-tg][aria-pressed="true"]')].map(b=>b.dataset.tg);
     if(id&&(r.tags||[]).includes("Example")) tags.push("Example");
     const rec={id:id||("r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
