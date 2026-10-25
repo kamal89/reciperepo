@@ -1,6 +1,6 @@
 {
-  "name": "Our Recipe Box",
-  "short_name": "Recipe Box",
+  "name": "Recipe Repo",
+  "short_name": "Recipe Repo",
   "description": "Our recipes, sorted by meal, cuisine and tags, with a combined grocery list.",
   "id": "./",
   "start_url": "./",

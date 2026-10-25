@@ -7,14 +7,26 @@
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1d2420" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Recipe Box">
+<meta name="apple-mobile-web-app-title" content="Recipe Repo">
 <link rel="icon" type="image/png" href="icons/favicon.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>
+// Firebase project for Recipe Repo. This config is meant to be public;
+// the Firestore security rules (firestore.rules) are what protect the data.
+window.FIREBASE_CONFIG={
+  apiKey:"AIzaSyCBLAwm27Sg8r93dXXKCJZI5ujjrrrQIaQ",
+  authDomain:"recipe-repo-fdbf0.firebaseapp.com",
+  projectId:"recipe-repo-fdbf0",
+  storageBucket:"recipe-repo-fdbf0.firebasestorage.app",
+  messagingSenderId:"476674450541",
+  appId:"1:476674450541:web:9e0ffeb3cb6507b0208b64"
+};
+</script>
 <script>if("serviceWorker" in navigator&&location.protocol!=="file:"){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </head>
 <body>
-<title>Our Recipe Box</title>
+<title>Recipe Repo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -189,12 +201,20 @@ main{padding-block:20px 60px}
 .staplechips form{display:flex;gap:6px;flex:1 1 180px;min-width:0}
 .staplechips input{flex:1;min-width:0;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.88rem}
 .wake[aria-pressed="true"]{background:var(--mustard-soft);border-color:var(--mustard)}
+.gate{position:fixed;inset:0;z-index:25;background:var(--bg);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.gate .box{max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;text-align:center;align-items:center}
+.gate img{width:88px;height:88px;border-radius:20px}
+.gate h2{font-size:1.8rem}
+.gate p{margin:0;color:var(--muted)}
+.gate .err{color:var(--danger);font-size:.92rem}
+.gbtn{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:11px 20px;font-weight:700;font-size:1rem}
+.gbtn svg{width:20px;height:20px}
 .copybox{width:100%;min-height:160px;font-family:var(--f-mono);font-size:.85rem;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 </style>
 
 <header>
   <div class="wrap bar">
-    <div class="brand"><h1>Our Recipe Box</h1><small id="status">Loading…</small></div>
+    <div class="brand"><h1>Recipe Repo</h1><small id="status">Loading…</small></div>
     <button class="btn small primary" id="installBtn" hidden>Install app</button>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-recipes" aria-selected="true" data-view="recipes">Recipes</button>
@@ -222,6 +242,7 @@ main{padding-block:20px 60px}
       <button class="btn small" id="exportBtn">Back up recipes</button>
       <button class="btn small" id="importBtn">Restore from backup</button>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <button class="btn small ghost" id="signOutBtn" hidden>Sign out</button>
     </div>
   </section>
 
@@ -254,6 +275,16 @@ main{padding-block:20px 60px}
   </section>
 </main>
 
+<div id="gate" class="gate" hidden>
+  <div class="box">
+    <img id="gateIcon" alt="">
+    <h2>Recipe Repo</h2>
+    <p id="gateMsg">Sign in with your Google account to see your recipes and grocery list.</p>
+    <button class="gbtn" id="signInBtn"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.8 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Sign in with Google</button>
+    <button class="btn ghost small" id="gateSignOut" hidden>Use a different account</button>
+    <p class="err" id="gateErr" hidden></p>
+  </div>
+</div>
 <div id="overlay" class="overlay" hidden></div>
 <div id="toast" class="toast" hidden></div>
 
@@ -416,7 +447,8 @@ async function deleteRecipe(id){
   try{ await db.collection("recipes").doc(id).delete(); savePlan(); }catch(e){ writeFail(e); }
 }
 function writeFail(e){
-  if(e&&e.code==="invalid_argument"){canWrite=false;showNotice("You can view this recipe box, but you don't have permission to change it. Ask the owner to make you a Contributor.");}
+  if(e&&e.code==="denied"){showGate("denied");return;}
+  if(e&&e.code==="invalid_argument"){canWrite=false;showNotice("You can view this recipe collection, but you don't have permission to change it. Ask the owner to make you a Contributor.");}
   else if(e&&e.code==="quota_exceeded") toast("Storage is full. Delete a few recipes and try again.");
   else toast("Couldn't save that change. Try again in a moment.");
   render();
@@ -447,7 +479,7 @@ function filtered(){
 }
 function renderGrid(){
   const g=$("#grid");
-  if(!recipes.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>No recipes yet</h2><p>Add your first recipe with <b>+ Add recipe</b>. Paste the ingredients one per line and the app sorts them into a shopping list.</p></div>`;return;}
+  if(!recipes.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>No recipes yet</h2><p>Add your first recipe with <b>+ Add recipe</b>, or bring in recipes you backed up with <b>Restore from backup</b> below.</p></div>`;return;}
   const list=filtered();
   if(!list.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>Nothing matches</h2><p>Try a different search or clear a filter.</p></div>`;return;}
   g.innerHTML=list.map(r=>{
@@ -620,7 +652,7 @@ $("#exportBtn").onclick=async()=>{
   const ok=await saveFile(`recipe-box-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),"application/json");
   if(ok&&!downloads) toast(`Saved ${recipes.length} recipes to your downloads.`);
 };
-$("#importBtn").onclick=()=>{ if(!canWrite){toast("You can't change this recipe box.");return;} $("#importFile").value=""; $("#importFile").click(); };
+$("#importBtn").onclick=()=>{ if(!canWrite){toast("You can't change this recipe collection.");return;} $("#importFile").value=""; $("#importFile").click(); };
 const cleanId=id=>typeof id==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(id)?id:"r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function cleanRecipe(r){
   if(!r||typeof r.title!=="string"||!r.title.trim()) return null;
@@ -651,8 +683,39 @@ $("#importFile").addEventListener("change",async e=>{
 /* ---------- install as an app (Android Chrome) ---------- */
 let installEvt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;$("#installBtn").hidden=false;});
-window.addEventListener("appinstalled",()=>{installEvt=null;$("#installBtn").hidden=true;toast("Installed. Open Recipe Box from your home screen.");});
+window.addEventListener("appinstalled",()=>{installEvt=null;$("#installBtn").hidden=true;toast("Installed. Open Recipe Repo from your home screen.");});
 $("#installBtn").onclick=async()=>{if(!installEvt)return;installEvt.prompt();try{await installEvt.userChoice;}catch{}installEvt=null;$("#installBtn").hidden=true;};
+
+/* ---------- shared storage in Firebase (the hosted / installed app) ---------- */
+let cloud=null, cloudUser=null, unsubs=[];
+function showGate(state,msg){
+  const g=$("#gate"); g.hidden=false; if(!$("#gateIcon").src) $("#gateIcon").src="icons/icon-192.png";
+  $("#gateErr").hidden=!msg; $("#gateErr").textContent=msg||"";
+  const denied=state==="denied";
+  $("#gateMsg").textContent=denied
+    ? `${cloudUser?.email||"This account"} doesn't have access to these recipes. Sign in with one of the accounts that does.`
+    : "Sign in with your Google account to see your recipes and grocery list.";
+  $("#signInBtn").hidden=denied; $("#gateSignOut").hidden=!denied;
+  if(denied){unsubs.forEach(u=>u());unsubs=[];live=false;}
+}
+async function startCloud(cfg){
+  $("#status").textContent="Connecting…";
+  try{ cloud=await (await import("./firebase-store.js")).connect(cfg); }
+  catch(e){ showGate("error","Couldn't reach Recipe Repo. Check your connection and reopen the app."); return; }
+  db=cloud.db;
+  $("#signInBtn").onclick=async()=>{ $("#gateErr").hidden=true;
+    try{await cloud.signIn();}catch(e){showGate("signin","Sign-in didn't finish. Try again.");} };
+  $("#gateSignOut").onclick=$("#signOutBtn").onclick=async()=>{ await cloud.signOut(); };
+  cloud.onUser(u=>{
+    unsubs.forEach(f=>f()); unsubs=[]; cloudUser=u;
+    if(!u){ live=false; recipes=[]; plan=normPlan(null); render(); $("#signOutBtn").hidden=true; $("#status").textContent="Signed out"; showGate("signin"); return; }
+    $("#gate").hidden=true; live=true; canWrite=true;
+    $("#status").textContent="Shared"; $("#signOutBtn").hidden=false; $("#signOutBtn").textContent=`Sign out (${u.email})`;
+    const onErr=e=>{ if(e.code==="denied") showGate("denied"); else toast("Lost connection. Changes will sync when you're back online."); };
+    unsubs.push(db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();},onErr));
+    unsubs.push(db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();},onErr));
+  });
+}
 
 /* ---------- boot ---------- */
 setView(location.hash==="#list"?"list":"recipes");
@@ -661,11 +724,14 @@ render();
 (async()=>{
   const c=window.claude;
   const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg,"rb-local-notice"); loadLocal(); };
-  if(!c||!c.use){ localMode("Recipes and lists are saved on this device only. Use Copy, Email or Text to share a list."); return; }
+  if(!c||!c.use){
+    if(window.FIREBASE_CONFIG){ startCloud(window.FIREBASE_CONFIG); return; }
+    localMode("Recipes and lists are saved on this device only. Use Copy, Email or Text to share a list."); return;
+  }
   [db,user,downloads]=await Promise.all([c.use("db"),c.use("user"),c.use("downloads")]);
   if(!db){ localMode("Sign in to Claude to see your shared recipes. Until then, changes are saved in this browser only."); return; }
   live=true;
-  const w=user?await user.can("data.write"):null; if(w===false){canWrite=false;showNotice("You're viewing this recipe box. Ask the owner to make you a Contributor so you can add recipes and check off groceries.");}
+  const w=user?await user.can("data.write"):null; if(w===false){canWrite=false;showNotice("You're viewing this recipe collection. Ask the owner to make you a Contributor so you can add recipes and check off groceries.");}
   $("#status").textContent="Shared";
   db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();},e=>{if(e.code!=="revoked")toast("Lost connection to your recipes. Reload to reconnect.");});
   db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();});

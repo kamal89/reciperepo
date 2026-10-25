@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Recipe Repo: only the Google accounts listed below can read or change anything.
+// Replace the two emails below with yours, then paste this into Firebase console → Firestore Database → Rules, then click Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'FIRST_PERSON@gmail.com',
+          'SECOND_PERSON@gmail.com'
+        ];
+    }
+
+    // Recipes: one document per recipe.
+    match /recipes/{recipeId} {
+      allow read, delete: if allowed();
+      allow create, update: if allowed()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.ingredients is list;
+    }
+
+    // The shared meal plan and grocery list (plan/current).
+    match /plan/{docId} {
+      allow read, write: if allowed();
+    }
+
+    // Everything else is closed.
+  }
+}

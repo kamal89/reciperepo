@@ -1,12 +1,13 @@
-// Offline support for Our Recipe Box.
+// Offline support for Recipe Repo.
 // Bump VERSION whenever app files change so phones pick up the new version.
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = `recipe-box-shell-${VERSION}`;
 const RUNTIME = "recipe-box-runtime";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./firebase-store.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
@@ -41,8 +42,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Google Fonts: serve the cached copy right away and refresh it in the background.
-  if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
+  // Google Fonts and the Firebase SDK: serve the cached copy right away and refresh it in the background.
+  // (Firestore and sign-in traffic goes to other hosts and is never cached here.)
+  if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com" ||
+      (url.hostname === "www.gstatic.com" && url.pathname.startsWith("/firebasejs/"))) {
     event.respondWith(
       caches.open(RUNTIME).then(async (c) => {
         const cached = await c.match(req);
