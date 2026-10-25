@@ -1,6 +1,6 @@
 // Offline support for Recipe Repo.
 // Bump VERSION whenever app files change so phones pick up the new version.
-const VERSION = "v5";
+const VERSION = "v9";
 const SHELL = `recipe-box-shell-${VERSION}`;
 const RUNTIME = "recipe-box-runtime";
 const SHELL_FILES = [
@@ -35,7 +35,8 @@ self.addEventListener("fetch", (event) => {
   // The page itself: try the network first so updates show up, fall back to the cached copy offline.
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
+      // no-cache: always check GitHub for a newer page instead of using the browser's 10-minute copy
+      fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
         .then((res) => { const copy = res.clone(); caches.open(SHELL).then((c) => c.put("./index.html", copy)); return res; })
         .catch(() => caches.match("./index.html"))
     );
