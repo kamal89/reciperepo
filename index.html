@@ -28,15 +28,32 @@
   --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
   --r:10px;
+  /* meal colors: soft fill + strong ink */
+  --breakfast-bg:#fbefc8; --breakfast:#8a6200;
+  --lunch-bg:#d6eef0;     --lunch:#1f6d74;
+  --dinner-bg:#ece0f2;    --dinner:#6b3a86;
+  --side-bg:#dfeedd;      --side:#3c6e35;
+  --dessert-bg:#f8e0e6;   --dessert:#a03a58;
+  --snack-bg:#fde3cf;     --snack:#a2531a;
+  /* tag kinds */
+  --t-diet:#3c7d4a; --t-gf:#a8740a; --t-time:#2f6390; --t-kid:#b0436a;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#151a17; --surface:#1d2420; --sunk:#252d28; --line:#33403a;
   --ink:#e6ece7; --muted:#9aa9a0; --accent:#6fbf94; --accent-ink:#0f1a14;
-  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b; color-scheme:dark}}
+  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b;
+  --breakfast-bg:#3a3016; --breakfast:#f0c95a; --lunch-bg:#16363a; --lunch:#7fd0d6;
+  --dinner-bg:#33243d; --dinner:#cfa4e6; --side-bg:#1f3320; --side:#9fd394;
+  --dessert-bg:#3d2029; --dessert:#f2a3b8; --snack-bg:#3d2817; --snack:#f5b07a;
+  --t-diet:#8fd19e; --t-gf:#e8bf5c; --t-time:#8ab8e6; --t-kid:#f09ab8; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#151a17; --surface:#1d2420; --sunk:#252d28; --line:#33403a;
   --ink:#e6ece7; --muted:#9aa9a0; --accent:#6fbf94; --accent-ink:#0f1a14;
-  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b; color-scheme:dark}
+  --mustard:#e2b844; --mustard-soft:#3a3320; --danger:#ef7b6b;
+  --breakfast-bg:#3a3016; --breakfast:#f0c95a; --lunch-bg:#16363a; --lunch:#7fd0d6;
+  --dinner-bg:#33243d; --dinner:#cfa4e6; --side-bg:#1f3320; --side:#9fd394;
+  --dessert-bg:#3d2029; --dessert:#f2a3b8; --snack-bg:#3d2817; --snack:#f5b07a;
+  --t-diet:#8fd19e; --t-gf:#e8bf5c; --t-time:#8ab8e6; --t-kid:#f09ab8; color-scheme:dark}
 
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
@@ -77,16 +94,45 @@ main{padding-block:20px 60px}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.card.picked{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.card .meta{display:flex;gap:10px;font-size:.8rem;color:var(--muted);font-family:var(--f-mono);flex-wrap:wrap}
-.card h3{font-size:1.15rem;font-weight:700}
+[data-meal]{--mc-bg:var(--sunk);--mc:var(--muted)}
+[data-meal="Breakfast"]{--mc-bg:var(--breakfast-bg);--mc:var(--breakfast)}
+[data-meal="Lunch"]{--mc-bg:var(--lunch-bg);--mc:var(--lunch)}
+[data-meal="Dinner"]{--mc-bg:var(--dinner-bg);--mc:var(--dinner)}
+[data-meal="Side"]{--mc-bg:var(--side-bg);--mc:var(--side)}
+[data-meal="Dessert"]{--mc-bg:var(--dessert-bg);--mc:var(--dessert)}
+[data-meal="Snack"]{--mc-bg:var(--snack-bg);--mc:var(--snack)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--mc);flex:none}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-width:0;overflow:hidden;position:relative}
+.card .band{background:var(--mc-bg);color:var(--mc);display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 16px;font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px dashed color-mix(in srgb,var(--mc) 35%,transparent)}
+.card .band>span:first-child{flex:none}
+.card .band .time{font-family:var(--f-mono);letter-spacing:0;text-transform:none;font-weight:500;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card .body{padding:12px 16px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.card .cuisine{font-size:.8rem;color:var(--muted);font-style:italic}
+.card.picked{border-color:var(--mc);box-shadow:0 0 0 1px var(--mc)}
+.card.picked::after{content:"✓";position:absolute;top:5px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--mc);color:var(--surface);font-size:.75rem;font-weight:700;display:grid;place-items:center}
+.card.picked .band .time{margin-right:22px}
+.card h3{font-size:1.2rem;font-weight:700}
 .card h3 button{all:unset;cursor:pointer}
 .card h3 button:hover{text-decoration:underline;text-underline-offset:3px}
 .card h3 button:focus-visible{outline:2px solid var(--accent)}
 .tags{display:flex;gap:5px;flex-wrap:wrap}
-.tag{font-size:.75rem;background:var(--sunk);border-radius:4px;padding:1px 7px;color:var(--muted)}
-.tag.ex{background:var(--mustard-soft);color:var(--ink)}
+.tag{--tc:var(--muted);font-size:.75rem;border:1px solid color-mix(in srgb,var(--tc) 45%,transparent);color:var(--tc);border-radius:999px;padding:0 8px;display:inline-flex;align-items:center;gap:5px;font-weight:700}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--tc)}
+.tag[data-k="diet"]{--tc:var(--t-diet)} .tag[data-k="gf"]{--tc:var(--t-gf)} .tag[data-k="time"]{--tc:var(--t-time)} .tag[data-k="kid"]{--tc:var(--t-kid)}
+.tag.ex{background:var(--mustard-soft);border-color:transparent;color:var(--ink)} .tag.ex::before{display:none}
+.card .foot .btn{white-space:nowrap;flex:none}
+.card .foot .hint{min-width:0}
+.chip .tdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tc,var(--muted));margin-right:6px;vertical-align:1px}
+.chip[data-k="diet"]{--tc:var(--t-diet)}.chip[data-k="gf"]{--tc:var(--t-gf)}.chip[data-k="time"]{--tc:var(--t-time)}.chip[data-k="kid"]{--tc:var(--t-kid)}
+.card .foot .btn.primary{background:var(--mc);border-color:var(--mc);color:var(--surface)}
+.chip .dot{margin-right:6px;vertical-align:1px}
+.chip[aria-pressed="true"] .dot{box-shadow:0 0 0 2px var(--bg)}
+.meal .dot{width:10px;height:10px}
+.sheetband{margin:-22px -22px 0;padding:10px 22px;background:var(--mc-bg);color:var(--mc);border-radius:14px 14px 0 0;font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;display:flex;justify-content:space-between;gap:10px}
+.sheet[data-meal] .actions .btn.primary{background:var(--mc);border-color:var(--mc);color:var(--surface)}
+.sheetband .time{font-family:var(--f-mono);letter-spacing:0;text-transform:none;font-weight:500}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s,box-shadow .15s,transform .15s}.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px -10px color-mix(in srgb,var(--mc) 70%,transparent)}.card.picked:hover{box-shadow:0 0 0 1px var(--mc),0 6px 18px -10px var(--mc)}}
 .card .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px}
 .empty{border:2px dashed var(--line);border-radius:var(--r);padding:40px 20px;text-align:center;color:var(--muted)}
 .empty h2{color:var(--ink);font-size:1.3rem;margin-bottom:6px}
@@ -144,7 +190,6 @@ main{padding-block:20px 60px}
 .staplechips input{flex:1;min-width:0;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.88rem}
 .wake[aria-pressed="true"]{background:var(--mustard-soft);border-color:var(--mustard)}
 .copybox{width:100%;min-height:160px;font-family:var(--f-mono);font-size:.85rem;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 </style>
 
 <header>
@@ -227,6 +272,8 @@ const AISLES=[ // first match wins, so specific rules come before broad ones
  ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch)\b/],
 ];
 const UNITS={cup:"cup",cups:"cup",c:"cup",tablespoon:"tbsp",tablespoons:"tbsp",tbsp:"tbsp",tbs:"tbsp",T:"tbsp",teaspoon:"tsp",teaspoons:"tsp",tsp:"tsp",t:"tsp",g:"g",gram:"g",grams:"g",kg:"kg",ml:"ml",l:"l",liter:"l",litre:"l",oz:"oz",ounce:"oz",ounces:"oz",lb:"lb",lbs:"lb",pound:"lb",pounds:"lb",clove:"clove",cloves:"clove",can:"can",cans:"can",tin:"can",tins:"can",pinch:"pinch",bunch:"bunch",bunches:"bunch",slice:"slice",slices:"slice",stick:"stick",sticks:"stick",package:"pkg",packages:"pkg",pkg:"pkg",jar:"jar",jars:"jar",head:"head",heads:"head",sprig:"sprig",sprigs:"sprig",handful:"handful"};
+const TAG_KIND={vegetarian:"diet",vegan:"diet","dairy-free":"diet",pescatarian:"diet","gluten-free":"gf",quick:"time","make-ahead":"time",freezer:"time","slow cooker":"time","one-pot":"time","kid-friendly":"kid"};
+const tagHtml=t=>`<span class="tag${t==="Example"?" ex":""}" data-k="${TAG_KIND[t.toLowerCase()]||""}">${esc(t)}</span>`;
 const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
 
 let db=null, user=null, canWrite=true, live=false;
@@ -383,7 +430,7 @@ function showNotice(t,dismissKey){
 }
 
 /* ---------- rendering ---------- */
-function chip(group,val,cur){return `<button class="chip" data-f="${group}" data-v="${esc(val)}" aria-pressed="${cur===val}">${esc(val)}</button>`;}
+function chip(group,val,cur){return `<button class="chip" data-f="${group}" data-v="${esc(val)}" aria-pressed="${cur===val}"${group==="meal"?` data-meal="${esc(val)}"`:""}${group==="tag"?` data-k="${TAG_KIND[val.toLowerCase()]||""}"`:""}>${group==="meal"?'<span class="dot"></span>':group==="tag"?'<span class="tdot"></span>':""}${esc(val)}</button>`;}
 function renderFilters(){
   const cuisines=[...new Set(recipes.map(r=>r.cuisine).filter(Boolean))].sort();
   const tags=[...new Set(recipes.flatMap(r=>r.tags||[]))].sort();
@@ -405,19 +452,21 @@ function renderGrid(){
   if(!list.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>Nothing matches</h2><p>Try a different search or clear a filter.</p></div>`;return;}
   g.innerHTML=list.map(r=>{
     const picked=!!plan.meals[r.id];
-    const ex=(r.tags||[]).includes("Example");
-    return `<article class="card${picked?" picked":""}">
-      <div class="meta">${esc(r.mealType||"")}${r.cuisine?` · ${esc(r.cuisine)}`:""}${r.time?` · ${esc(r.time)}`:""}</div>
-      <h3><button data-open="${r.id}">${esc(r.title)}</button></h3>
-      <div class="tags">${(r.tags||[]).map(t=>`<span class="tag${t==="Example"?" ex":""}">${esc(t)}</span>`).join("")}</div>
-      <div class="foot"><span class="hint">${(r.ingredients||[]).length} ingredients · serves ${r.servings||"?"}</span>
-      <button class="btn small${picked?" primary":""}" data-pick="${r.id}" aria-pressed="${picked}">${picked?"✓ On the list":"+ Add to meals"}</button></div>
+        return `<article class="card${picked?" picked":""}" data-meal="${esc(r.mealType||"")}">
+      <div class="band"><span>${esc(r.mealType||"Recipe")}</span>${r.time?`<span class="time" title="${esc(r.time)}">${esc(r.time)}</span>`:""}</div>
+      <div class="body">
+        ${r.cuisine?`<div class="cuisine">${esc(r.cuisine)}</div>`:""}
+        <h3><button data-open="${r.id}">${esc(r.title)}</button></h3>
+        <div class="tags">${(r.tags||[]).map(tagHtml).join("")}</div>
+        <div class="foot"><span class="hint">${(r.ingredients||[]).length} ingredients · serves ${r.servings||"?"}</span>
+        <button class="btn small${picked?" primary":""}" data-pick="${r.id}" aria-pressed="${picked}">${picked?"✓ On the list":"+ Add to meals"}</button></div>
+      </div>
     </article>`;}).join("");
 }
 function renderGrocery(){
   const ids=Object.keys(plan.meals).filter(id=>recipes.some(r=>r.id===id));
   $("#meals").innerHTML=ids.length? ids.map(id=>{const r=recipes.find(x=>x.id===id);const s=plan.meals[id].servings||r.servings||1;
-    return `<div class="meal"><div class="nm">${esc(r.title)}</div>
+    return `<div class="meal" data-meal="${esc(r.mealType||"")}"><span class="dot"></span><div class="nm">${esc(r.title)}</div>
       <div class="stepper" aria-label="Servings"><button data-srv="${id}" data-d="-1" aria-label="Fewer servings">−</button><span>${s} serv</span><button data-srv="${id}" data-d="1" aria-label="More servings">+</button></div>
       <button class="btn small ghost" data-pick="${id}" aria-label="Remove ${esc(r.title)}">✕</button></div>`;}).join("")
     : `<p class="hint">No meals picked yet. Go to <b>Recipes</b> and tap <b>+ Add to meals</b> on what you want to cook.</p>`;
@@ -450,7 +499,7 @@ function setView(v){view=v;
 }
 
 /* ---------- dialogs ---------- */
-function openSheet(html){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
+function openSheet(html,meal){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"${meal!=null?` data-meal="${esc(meal)}"`:""}>${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
 function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";releaseWake();}
 // Keep the screen awake while a recipe is open (cooking mode)
 let wake=null, wantWake=false;
@@ -464,16 +513,17 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#overlay").hidd
 function showRecipe(id){
   const r=recipes.find(x=>x.id===id); if(!r) return;
   const picked=!!plan.meals[id];
-  openSheet(`<div class="top"><div><div class="hint">${esc(r.mealType||"")}${r.cuisine?" · "+esc(r.cuisine):""}${r.time?" · "+esc(r.time):""} · serves ${r.servings||"?"}</div><h2>${esc(r.title)}</h2></div><button class="btn ghost" data-close aria-label="Close">✕</button></div>
-    <div class="tags">${(r.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
-    <h3>Ingredients</h3><ul class="ing">${(r.ingredients||[]).map(i=>`<li><span class="q">${esc([fmtQty(i.qty),unitText(i.unit,i.qty)].filter(Boolean).join(" "))}</span><span>${esc(i.name)}${i.note?`<span class="hint">, ${esc(i.note)}</span>`:""}</span></li>`).join("")}</ul>
+  openSheet(`<div class="sheetband"><span>${esc(r.mealType||"Recipe")}${r.cuisine?" · "+esc(r.cuisine):""}</span><span class="time">${r.time?esc(r.time)+" · ":""}serves ${r.servings||"?"}</span></div>
+    <div class="top"><h2>${esc(r.title)}</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
+    <div class="tags">${(r.tags||[]).map(tagHtml).join("")}</div>
+    <h3>Ingredients</h3><ul class="ing">${(r.ingredients||[]).map(i=>`<li><span class="q">${esc([fmtQty(i.qty),unitText(i.unit,i.qty)].filter(Boolean).join(" "))}</span><span>${esc(i.name)}${i.note?`<span class="hint">${i.note.startsWith("(")?" ":", "}${esc(i.note)}</span>`:""}</span></li>`).join("")}</ul>
     ${r.steps?`<h3>Steps</h3><p class="steps">${esc(r.steps)}</p>`:""}
     ${r.source?`<p class="hint">Source: ${/^https?:\/\//.test(r.source)?`<a href="${esc(r.source)}" target="_blank" rel="noopener">${esc(r.source)}</a>`:esc(r.source)}</p>`:""}
     <div class="actions">
       ${"wakeLock" in navigator?`<button class="btn wake" id="wakeBtn" aria-pressed="${!!wake}" style="margin-right:auto">☀ Keep screen on</button>`:""}
       ${canWrite?`<button class="btn danger ghost" data-del="${id}">Delete</button><button class="btn" data-edit="${id}">Edit</button>`:""}
       <button class="btn primary" data-pick="${id}" data-close>${picked?"Remove from meals":"+ Add to meals"}</button>
-    </div>`);
+    </div>`, r.mealType||"");
 }
 function editRecipe(id){
   const r=id?recipes.find(x=>x.id===id):{title:"",mealType:"Dinner",cuisine:"",tags:[],servings:4,time:"",ingredients:[],steps:"",source:""};
