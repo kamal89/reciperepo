@@ -13,6 +13,7 @@ The app is a single page, `index.html`, with no build step. Recipes and the groc
 - **Combined grocery list.** Matching ingredients across meals are added together and grouped by aisle (Produce, Meat & Fish, Dairy & Eggs, Bakery, Pantry, Spices, Frozen, Other). Check items off while shopping and add extras.
 - **Sharing.** Copy the list, open it in your email or Messages app, or save it as a `.txt` file.
 - **Unit combining.** Teaspoons, tablespoons and cups of the same ingredient are added together (2 tbsp + ½ cup olive oil → ½ cup + 2 tbsp), as are ounces and pounds, grams and kilograms, and milliliters and liters.
+- **Checked section.** Checking an item moves it to a **Checked** section at the bottom of the list (uncheck to move it back). **Clear checked** takes everything you've bought off the list, with Undo.
 - **Edit the list.** Every item has ✎ (edit) and ✕ (remove, with Undo). Edit an item's name or amount ("2 lb bananas"); editing a recipe ingredient turns it into your own item. Removed recipe items can be put back.
 - **Ranges and optional items.** Amounts like "1 ½–2 ½ cups" or "2 to 3" show as ranges in the recipe, and the grocery list uses the larger amount. Ingredients under a heading containing "Optional" (or marked optional) are labeled optional on the list.
 - **Pantry staples.** Items you always have (salt, black pepper, olive oil by default) move to a "Probably have already" section and stay off the copied list, which ends with a reminder to check them. Edit the staples at the bottom of the list.

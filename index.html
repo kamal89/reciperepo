@@ -177,9 +177,9 @@ main{padding-block:20px 60px}
 .stepper span{font-family:var(--f-mono);font-size:.85rem;min-width:56px;text-align:center}
 .aisle{margin-top:14px}
 .aisle h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-family:var(--f-body);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:4px}
-.item{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.item{display:flex;gap:8px;align-items:flex-start;padding:6px 0;cursor:pointer}
 .item input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
-.item .q{font-family:var(--f-mono);font-size:.88rem;min-width:84px;color:var(--accent);flex:none;font-variant-numeric:tabular-nums}
+.item .q{font-family:var(--f-mono);font-size:.85rem;color:var(--accent);flex:none;max-width:42%;line-height:1.75;font-variant-numeric:tabular-nums}
 .item .n{flex:1;min-width:0}
 .item .q:empty{display:none}
 .opt{font-size:.72rem;font-style:italic;color:var(--muted);border:1px dashed var(--line);border-radius:999px;padding:0 7px;margin-left:4px;white-space:nowrap}
@@ -190,6 +190,10 @@ main{padding-block:20px 60px}
 .iedit{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0}
 .iedit input{flex:1 1 180px;min-width:0;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;background:var(--bg)}
 .iedit .hint{width:100%}
+.aisle.checked{margin-top:22px}
+.aisle.checked h3{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.aisle.checked h3 .btn{text-transform:none;letter-spacing:0;font-size:.8rem}
+.alldone{margin:14px 0 0;color:var(--accent);font-weight:700}
 .unhide{margin:12px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .item .from{display:block;font-size:.78rem;color:var(--muted)}
 .item.done .n,.item.done .q{text-decoration:line-through;opacity:.5}
@@ -420,14 +424,14 @@ const MEALS=["Breakfast","Lunch","Dinner","Side","Dessert","Snack"];
 const TAGS=["Vegetarian","Vegan","Quick","Make-ahead","Kid-friendly","Freezer","Gluten-free","Slow cooker"];
 const AISLES=[ // first match wins, so specific rules come before broad ones
  ["Household",/\b(paper towels?|toilet paper|tissues?|dish soap|dishwasher|detergent|laundry|trash bags?|garbage bags?|sponges?|foil|plastic wrap|zip ?(?:lock|top)? bags?|napkins?|cleaner|soap|shampoo|toothpaste)\b/],
- ["Pantry",/\b(broth|stock|bouillon|tomato paste|canned|crushed tomato|pureed|tahini|dressing|sauce|oil|vinegar|wine|coconut milk|sun-dried tomato\w*|olives?|peanut butter|almond butter|almond milk|oat milk)\b/],
+ ["Pantry",/\b(cans?|tins?|canned|tinned|jarred|broth|stock|bouillon|tomato paste|tomato sauce|tomato pur[eé]e|crushed tomato\w*|diced tomatoes \(?can|fire-roasted|pureed|tahini|dressing|sauce|oil|vinegar|wine|coconut milk|sun-dried tomato\w*|olives?|peanut butter|almond butter|almond milk|oat milk)\b/],
  ["Frozen",/\b(frozen|ice cream)\b/],
  ["Meat & Fish",/\b(chicken|beef|pork|bacon|sausage|turkey|lamb|steak|salmon|tuna|shrimp|fish|cod|prosciutto|ham|chorizo)\b/],
  ["Spices",/\b(garlic powder|onion powder|ground ginger|seasoning|sesame seeds|salt|black pepper|peppercorns?|cumin|paprika|cinnamon|oregano|chili powder|chili flakes|red pepper flakes|curry powder|turmeric|nutmeg|spices?|bay lea\w*|cayenne|garam masala|coriander|cardamom|vanilla|dried \w+)\b/],
  ["Dairy & Eggs",/\b(milk|butter|cream|cheese|parmesan|mozzarella|cheddar|feta|yogurt|yoghurt|eggs?|sour cream|ricotta)\b/],
  ["Produce",/\b(onions?|garlic|shallots?|tomato(es)?|potato(es)?|carrots?|celery|lettuce|spinach|kale|cabbage|peppers?|bell|jalape\w*|chil(i|e|ies|es)|lemons?|limes?|oranges?|apples?|bananas?|berr\w*|avocados?|cucumbers?|zucchini|squash|mushrooms?|herbs?|basil|cilantro|parsley|mint|dill|thyme|rosemary|ginger|scallions?|leeks?|broccoli|cauliflower|corn|peas|eggplants?|fruit|grapes?|mangos?|pears?|arugula|greens|salad mix|grapes?|melon|watermelon|peaches?|plums?|kiwis?|herbs)\b/],
  ["Bakery",/\b(bread|buns?|tortillas?|pita|baguette|rolls?|naan|bagels?)\b/],
- ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|orzo|soba|quinoa|pastina|couscous|seeds|tortilla chips|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch|coffee|tea|cereal|granola|crackers|peanut butter|jam|snacks?|chips|salsa)\b/],
+ ["Pantry",/\b(flour|sugar|rice|pasta|spaghetti|noodles?|orzo|soba|quinoa|pastina|couscous|seeds|tortilla chips|soy|cans?|beans?|lentils?|chickpeas?|oats?|honey|syrup|baking|yeast|nuts?|almonds?|peanuts?|pecans?|walnuts?|cashews?|pistachios?|hazelnuts?|pine nuts|raisins|dried fruit|mustard|ketchup|mayo|coconut|chocolate|cocoa|breadcrumbs?|cornstarch|coffee|tea|cereal|granola|crackers|peanut butter|jam|snacks?|chips|salsa)\b/],
 ];
 const UNITS={cup:"cup",cups:"cup",c:"cup",tablespoon:"tbsp",tablespoons:"tbsp",tbsp:"tbsp",tbs:"tbsp",T:"tbsp",teaspoon:"tsp",teaspoons:"tsp",tsp:"tsp",t:"tsp",g:"g",gram:"g",grams:"g",kg:"kg",ml:"ml",l:"l",liter:"l",litre:"l",oz:"oz",ounce:"oz",ounces:"oz",lb:"lb",lbs:"lb",pound:"lb",pounds:"lb",clove:"clove",cloves:"clove",can:"can",cans:"can",tin:"can",tins:"can",pinch:"pinch",bunch:"bunch",bunches:"bunch",slice:"slice",slices:"slice",stick:"stick",sticks:"stick",package:"pkg",packages:"pkg",pkg:"pkg",jar:"jar",jars:"jar",head:"head",heads:"head",sprig:"sprig",sprigs:"sprig",handful:"handful",box:"box",boxes:"box",bag:"bag",bags:"bag",bottle:"bottle",bottles:"bottle",carton:"carton",cartons:"carton",pint:"pint",pints:"pint",quart:"quart",quarts:"quart",dozen:"dozen",loaf:"loaf",loaves:"loaf",container:"container",containers:"container",pack:"pack",packs:"pack",packet:"packet",packets:"packet",block:"block",blocks:"block",piece:"piece",pieces:"piece"};
 const TAG_KIND={vegetarian:"diet",vegan:"diet","dairy-free":"diet",pescatarian:"diet","gluten-free":"gf",quick:"time","make-ahead":"time",freezer:"time","slow cooker":"time","one-pot":"time","kid-friendly":"kid"};
@@ -702,10 +706,14 @@ function renderGrocery(){
   const all=buildList(); let total=0,open=0;
   const itemHtml=e=>{const done=!!plan.checked[e.key];
     return `<label class="item${done?" done":""}" data-key="${esc(e.key)}"><input type="checkbox" data-chk="${esc(e.key)}" ${done?"checked":""}><span class="q">${esc(qtyText(e))}${e.noQty&&e.qty!=null?" +":""}</span><span class="n">${esc(e.name)}${e.optional?` <span class="opt">optional</span>`:""}${e.extra?"":`<span class="from">${esc([...e.from].join(", "))}</span>`}</span>${canWrite?`<span class="iacts"><button type="button" class="ib" data-iedit="${esc(e.key)}" aria-label="Edit ${esc(e.name)}">✎</button><button type="button" class="ib" data-iremove="${esc(e.key)}" aria-label="Remove ${esc(e.name)}">✕</button></span>`:""}</label>`;};
-  const groups=all.map(([a,items])=>[a,items.filter(e=>!isStaple(e))]).filter(([,i])=>i.length);
-  const have=all.flatMap(([,i])=>i).filter(isStaple);
+  const isDone=e=>!!plan.checked[e.key];
+  const groups=all.map(([a,items])=>[a,items.filter(e=>!isStaple(e)&&!isDone(e))]).filter(([,i])=>i.length);
+  const have=all.flatMap(([,i])=>i).filter(e=>isStaple(e)&&!isDone(e));
+  const done=all.flatMap(([,i])=>i).filter(isDone);
+  total=all.flatMap(([,i])=>i).filter(e=>!isStaple(e)).length;
   const nHidden=Object.keys(plan.hidden||{}).length;
-  const html=groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{total++;if(!plan.checked[e.key])open++;return itemHtml(e);}).join("")}</div>`).join("")
+  const html=groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{open++;return itemHtml(e);}).join("")}</div>`).join("")
+    +(!groups.length&&done.length?`<p class="alldone">✓ Everything's checked off.</p>`:"")
     +(nHidden&&canWrite?`<p class="hint unhide">${nHidden} recipe item${nHidden>1?"s":""} removed from the list. <button type="button" class="btn small ghost" data-unhide>Put back</button></p>`:"");
   const st=staples();
   const staplesHtml=`<div class="staples"><h3>Probably have already</h3>
@@ -713,7 +721,8 @@ function renderGrocery(){
     <div class="staplechips">${st.map(x=>`<span class="chip">${esc(x)}${canWrite?` <button class="btn small ghost" style="padding:0 2px" data-rmstaple="${esc(x)}" aria-label="Remove ${esc(x)} from staples">✕</button>`:""}</span>`).join("")}
     ${canWrite?`<form id="stapleForm"><input id="stapleIn" placeholder="Add something you always have" aria-label="Add a staple"><button class="btn small" type="submit">Add</button></form>`:""}</div>
     <p class="hint" style="margin:6px 0 0">Staples stay off the list you copy or send, with a reminder to check them.</p></div>`;
-  $("#glist").innerHTML=(all.length? html : `<p class="hint" style="margin-top:14px">The list is empty. Add items above, tap common items, or pick meals from Recipes.</p>`)+(all.length?staplesHtml:"");
+  const doneHtml=done.length?`<div class="aisle checked"><h3><span>Checked (${done.length})</span>${canWrite?`<button type="button" class="btn small ghost" data-clearchecked>Clear checked</button>`:""}</h3>${done.map(itemHtml).join("")}</div>`:"";
+  $("#glist").innerHTML=(all.length? html : `<p class="hint" style="margin-top:14px">The list is empty. Add items above, tap common items, or pick meals from Recipes.</p>`)+(all.length?staplesHtml:"")+doneHtml;
   const sf=$("#stapleForm"); if(sf) sf.onsubmit=ev=>{ev.preventDefault();const v=$("#stapleIn").value.trim().toLowerCase();if(!v)return;
     if(!st.includes(v)){plan.staples=[...st,v];savePlan();} setTimeout(()=>$("#stapleIn")?.focus(),0);};
   $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
@@ -1141,6 +1150,15 @@ $("#glist").addEventListener("click",e=>{
   if(b.dataset.iedit){e.preventDefault();editItem(b.dataset.iedit);return;}
   if(b.dataset.iremove){e.preventDefault();removeItem(b.dataset.iremove);return;}
   if(b.hasAttribute("data-unhide")){delete plan.hidden;savePlan();}
+  if(b.hasAttribute("data-clearchecked")){   // after shopping: take checked items off the list
+    const before={extras:plan.extras,checked:plan.checked,hidden:plan.hidden};
+    const keys=Object.keys(plan.checked||{});
+    plan.extras=(plan.extras||[]).filter(x=>!plan.checked["x:"+x.id]);
+    const hid={...(plan.hidden||{})}; keys.filter(k=>!k.startsWith("x:")).forEach(k=>hid[k]=true);
+    plan.hidden=Object.keys(hid).length?hid:undefined; if(!plan.hidden) delete plan.hidden;
+    plan.checked={}; savePlan();
+    toast(`Cleared ${keys.length} item${keys.length>1?"s":""}`,{action:"Undo",onAction:()=>{plan.extras=before.extras;plan.checked=before.checked;if(before.hidden)plan.hidden=before.hidden;else delete plan.hidden;savePlan();}});
+  }
 });
 let regEdit=false;
 function renderRegulars(){
