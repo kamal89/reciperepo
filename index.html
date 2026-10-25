@@ -126,6 +126,7 @@ main{padding-block:20px 60px}
 .card .band{background:var(--mc-bg);color:var(--mc);display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 16px;font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px dashed color-mix(in srgb,var(--mc) 35%,transparent)}
 .card .band>span:first-child{flex:none}
 .card .band .time{font-family:var(--f-mono);letter-spacing:0;text-transform:none;font-weight:500;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card{cursor:pointer}
 .card .body{padding:12px 16px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
 .card .cuisine{font-size:.8rem;color:var(--muted);font-style:italic}
 .card.picked{border-color:var(--mc);box-shadow:0 0 0 1px var(--mc)}
@@ -247,7 +248,7 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
 .regulars .chip .x{border:0;background:none;color:var(--danger);padding:0 0 0 2px;font-weight:700}
 .tagadd{display:flex;gap:6px;margin-top:6px}
 .tagadd input{flex:1;min-width:0}
-.fmtbar{display:flex;gap:6px;flex-wrap:wrap}
+.fmtbar{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
 .fmtbar button{font-size:.8rem;padding:2px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
 .fmtbar button b{font-weight:800}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -607,7 +608,7 @@ function renderGrid(){
   if(!list.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><h2>Nothing matches</h2><p>Try a different search or clear a filter.</p></div>`;return;}
   g.innerHTML=list.map(r=>{
     const picked=!!plan.meals[r.id];
-        return `<article class="card${picked?" picked":""}" data-meal="${esc(r.mealType||"")}">
+        return `<article class="card${picked?" picked":""}" data-meal="${esc(r.mealType||"")}" data-card="${r.id}">
       <div class="band"><span>${esc(r.mealType||"Recipe")}</span>${r.time?`<span class="time" title="${esc(r.time)}">${esc(r.time)}</span>`:""}</div>
       <div class="body">
         ${r.cuisine?`<div class="cuisine">${esc(r.cuisine)}</div>`:""}
@@ -657,10 +658,21 @@ function renderGrocery(){
 function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderRegulars();
   $("#addBtn").disabled=!canWrite; $("#importBtn").disabled=!canWrite; }
 
-function setView(v){view=v;
+/* Back button: the grocery tab and every open sheet (recipe, edit form, …) are entries in the phone's
+   history, so Back closes the top sheet, then leaves the grocery tab, and only then exits the app. */
+function showView(v){view=v;
   $("#view-recipes").hidden=v!=="recipes"; $("#view-list").hidden=v!=="list";
   $("#tab-recipes").setAttribute("aria-selected",v==="recipes"); $("#tab-list").setAttribute("aria-selected",v==="list");
-  try{history.replaceState(null,"","#"+v)}catch{}
+}
+const hstate=()=>history.state||{};
+function setView(v){
+  if(v===view) return;
+  try{
+    if(v==="list"){ history.pushState({view:"list",pushed:true,sheet:0},"","#list"); }
+    else if(hstate().pushed&&hstate().view==="list"&&!sheetDepth){ history.back(); return; }   // popstate shows Recipes
+    else history.replaceState({...hstate(),view:v},"","#"+v);
+  }catch{}
+  showView(v);
 }
 
 /* ---------- step formatting ----------
@@ -746,8 +758,24 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 if(timers.length) renderTimers();
 
 /* ---------- dialogs ---------- */
-function openSheet(html,meal){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"${meal!=null?` data-meal="${esc(meal)}"`:""}>${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
-function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";releaseWake();openRecipeId=null;}
+let sheetDepth=0, restoring=false; const sheetReopen=[];
+// reopen: how to draw this sheet again when Back returns to it. replace: swap the top sheet instead of stacking.
+function openSheet(html,meal,{reopen=null,replace=false}={}){
+  const o=$("#overlay"); o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"${meal!=null?` data-meal="${esc(meal)}"`:""}>${html}</div>`; o.hidden=false;
+  o.querySelector("input,button")?.focus({preventScroll:true});
+  if(restoring){restoring=false;return;}
+  if(replace&&sheetDepth){sheetReopen[sheetDepth-1]=reopen;return;}
+  sheetDepth++; sheetReopen[sheetDepth-1]=reopen;
+  try{history.pushState({...hstate(),sheet:sheetDepth},"",location.hash||"#"+view);}catch{}
+}
+function hideOverlay(){$("#overlay").hidden=true;$("#overlay").innerHTML="";releaseWake();openRecipeId=null;}
+function closeSheet(){ if(sheetDepth>0){ try{history.back();return;}catch{} } sheetDepth=0; hideOverlay(); }
+window.addEventListener("popstate",()=>{
+  const st=hstate(), d=st.sheet||0;
+  if(d<sheetDepth){ sheetReopen.length=d; sheetDepth=d;
+    if(d===0) hideOverlay(); else { const re=sheetReopen[d-1]; if(re){restoring=true;re();restoring=false;} else hideOverlay(); } }
+  showView(st.view==="list"?"list":"recipes");
+});
 // Keep the screen awake while a recipe is open (cooking mode)
 let wake=null, wantWake=false;
 async function requestWake(){try{wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>{wake=null;syncWakeBtn();});}catch{wake=null;toast("This device won't keep the screen on from here.");wantWake=false;}syncWakeBtn();}
@@ -804,7 +832,7 @@ function showRecipe(id,opts={}){
       ${"wakeLock" in navigator?`<button class="btn wake" id="wakeBtn" aria-pressed="${!!wake}" style="margin-right:auto">☀ Keep screen on</button>`:""}
       ${canWrite?`<button class="btn danger ghost" data-del="${id}">Delete</button><button class="btn" data-edit="${id}">Edit</button>`:""}
       <button class="btn primary" data-pick="${id}" data-close>${picked?"Remove from meals":"+ Add to meals"}</button>
-    </div>`, r.mealType||"");
+    </div>`, r.mealType||"", {reopen:()=>showRecipe(id,{suggest:opts.suggest}), replace:!!opts.again});
   const sheet=$(".sheet");
   const updateScale=()=>{
     $("#svN").textContent=n; $("#ingList").innerHTML=ingListHtml(recipes.find(x=>x.id===id)||r,n/base);
@@ -870,7 +898,7 @@ function editRecipe(id,preset){
       <span class="hint">Each line becomes a numbered step. Lines starting with "Tip:" or "Note:" are highlighted, and cooking times and temperatures stand out.</span></div>
     <div class="field full"><label for="f-src">Source or link</label><input id="f-src" value="${esc(r.source)}">${/^https?:\/\//.test(r.source||"")?`<a class="hint" href="${esc(r.source)}" target="_blank" rel="noopener">Open the recipe page to copy ingredients and steps ↗</a>`:""}</div>
     <div class="actions full"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">${id?"Save changes":"Add recipe"}</button></div>
-  </form>`);
+  </form>`, undefined, {reopen:()=>editRecipe(id,preset)});
   const form=$("#rform");
   form.addEventListener("click",e=>{const b=e.target.closest("[data-fmt]");if(!b)return;e.preventDefault();applyFmt($("#"+b.parentElement.dataset.for),b.dataset.fmt);});
   form.querySelector("#f-tags").addEventListener("click",e=>{const b=e.target.closest("[data-tg]");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true");});
@@ -896,6 +924,8 @@ function editRecipe(id,preset){
       steps:$("#f-steps").value.trim(),source:$("#f-src").value.trim(),createdAt:r.createdAt||new Date().toISOString(),
       ...(r.rating?{rating:r.rating}:{}),...(r.notes?{notes:r.notes}:{}),...(r.favorite?{favorite:true}:{}),...(Array.isArray(r.made)&&r.made.length?{made:r.made}:{})};
     if(!rec.title) return;
+    // show the change right away (also on the recipe view Back returns to), then save
+    {const a=[...allRecipes],k=a.findIndex(x=>x.id===rec.id); if(k>=0)a[k]=rec; else a.push(rec); allRecipes=a; recipes=a.filter(x=>!x.deletedAt);}
     closeSheet(); await saveRecipe(rec); toast(id?"Recipe saved":"Recipe added");
   });
 }
@@ -931,7 +961,8 @@ function toast(t,opts={}){
 
 /* ---------- events ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("button,[data-open]"); if(!t) return;
+  const t=e.target.closest("button,[data-open]");
+  if(!t){ const c=e.target.closest("[data-card]"); if(c&&!e.target.closest("a,input,select,label")) showRecipe(c.dataset.card); return; }
   if(t.dataset.view) return setView(t.dataset.view);
   if(t.dataset.show){filters.show=filters.show===t.dataset.show?null:t.dataset.show;document.querySelectorAll("[data-show]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.show===filters.show));return renderGrid();}
   if(t.dataset.fav){const r=recipes.find(x=>x.id===t.dataset.fav);if(r&&canWrite){const {favorite,...rest}=r, next=r.favorite?rest:{...rest,favorite:true};
@@ -966,7 +997,7 @@ function pickDinner(){
   const w=r=>{const lm=lastMade(r);const days=lm?Math.min(60,(Date.now()-Date.parse(lm))/DAY):45;return (3+days)*(r.favorite?1.6:1)*(1+(r.rating||3)/5);};
   let x=Math.random()*pool.reduce((t,r)=>t+w(r),0), pick=pool[0];
   for(const r of pool){x-=w(r);if(x<=0){pick=r;break;}}
-  suggested.push(pick.id); showRecipe(pick.id,{suggest:true});
+  const again=!$("#overlay").hidden&&!!$(".suggest"); suggested.push(pick.id); showRecipe(pick.id,{suggest:true,again});
 }
 $("#dinnerBtn").onclick=()=>{suggested=[];pickDinner();};
 $("#q").addEventListener("input",e=>{filters.q=e.target.value;renderGrid();});
@@ -1111,7 +1142,7 @@ function takeShare(){
 let pendingShare=takeShare();
 function openShare(){
   if(!pendingShare||!canWrite) return;
-  const sh=pendingShare; pendingShare=null; setView("recipes");
+  const sh=pendingShare; pendingShare=null; showView("recipes");
   const norm=u=>u.replace(/[#?].*$/,"").replace(/\/$/,"").toLowerCase();
   const dup=sh.source&&recipes.find(r=>r.source&&norm(r.source)===norm(sh.source));
   if(dup){showRecipe(dup.id);toast("You already have this recipe.");return;}
@@ -1120,8 +1151,9 @@ function openShare(){
 }
 
 /* ---------- boot ---------- */
-setView(location.hash==="#list"?"list":"recipes");
-window.addEventListener("hashchange",()=>setView(location.hash==="#list"?"list":"recipes"));
+try{history.replaceState({view:location.hash==="#list"?"list":"recipes",sheet:0},"",location.hash||"#recipes");}catch{}
+showView(location.hash==="#list"?"list":"recipes");
+
 render();
 (async()=>{
   const c=window.claude;
