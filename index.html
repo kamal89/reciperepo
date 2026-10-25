@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d2420" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Recipe Box">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>if("serviceWorker" in navigator&&location.protocol!=="file:"){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
 </head>
 <body>
 <title>Our Recipe Box</title>
@@ -58,7 +66,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 main{padding-block:20px 60px}
-.notice{background:var(--mustard-soft);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+.notice{background:var(--mustard-soft);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.92rem;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .search{flex:1 1 240px;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
@@ -132,6 +140,7 @@ main{padding-block:20px 60px}
 <header>
   <div class="wrap bar">
     <div class="brand"><h1>Our Recipe Box</h1><small id="status">Loading…</small></div>
+    <button class="btn small primary" id="installBtn" hidden>Install app</button>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-recipes" aria-selected="true" data-view="recipes">Recipes</button>
       <button class="tab" role="tab" id="tab-list" aria-selected="false" data-view="list">Grocery list <span class="count" id="mealcount">0</span></button>
@@ -244,7 +253,7 @@ function fmtQty(q){
   const w=whole+(best[0]===1?1:0);
   return (w? w+(best[1]?" ":""):"")+best[1] || "0";
 }
-const aisleOf=n=>{const s=n.toLowerCase(); for(const [a,re] of AISLES) if(re.test(s)) return a; return "Other";};
+const aisleOf=(n,unit)=>{if(unit==="can"||unit==="jar")return "Pantry";const s=n.toLowerCase(); for(const [a,re] of AISLES) if(re.test(s)) return a; return "Other";};
 const keyOf=(name,unit)=>(name.toLowerCase().replace(/[^a-z ]/g,"").trim().replace(/(es|s)$/,"")+"|"+unit);
 
 /* ---------- grocery aggregation ---------- */
@@ -257,7 +266,7 @@ function buildList(){
       if(/^(cold |hot |warm )?water$/i.test(ing.name.trim())) continue; // not something to buy
       const k=keyOf(ing.name,ing.unit);
       let e=map.get(k);
-      if(!e){e={key:k,name:ing.name,unit:ing.unit,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name)};map.set(k,e);}
+      if(!e){e={key:k,name:ing.name,unit:ing.unit,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name,ing.unit)};map.set(k,e);}
       if(ing.qty==null) e.noQty=true; else e.qty=(e.qty||0)+ing.qty*factor;
       e.from.add(r.title);
     }
@@ -316,7 +325,13 @@ function writeFail(e){
   else toast("Couldn't save that change. Try again in a moment.");
   render();
 }
-function showNotice(t){const n=$("#notice");n.textContent=t;n.hidden=false;}
+function showNotice(t,dismissKey){
+  const n=$("#notice");
+  if(dismissKey){try{if(localStorage.getItem(dismissKey))return;}catch{}}
+  n.innerHTML='<span></span>'+(dismissKey?' <button class="btn small ghost" id="noticeX" aria-label="Dismiss">Got it</button>':"");
+  n.firstChild.textContent=t; n.hidden=false;
+  if(dismissKey) $("#noticeX").onclick=()=>{n.hidden=true;try{localStorage.setItem(dismissKey,"1")}catch{}};
+}
 
 /* ---------- rendering ---------- */
 function chip(group,val,cur){return `<button class="chip" data-f="${group}" data-v="${esc(val)}" aria-pressed="${cur===val}">${esc(val)}</button>`;}
@@ -478,13 +493,20 @@ $("#saveList").onclick=async()=>{const text=listText();
     catch{copyFallback(text);} return;}
   try{await downloads.save({filename:"grocery-list.txt",data:text});}catch(e){toast("The file wasn't saved.");}};
 
+/* ---------- install as an app (Android Chrome) ---------- */
+let installEvt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;$("#installBtn").hidden=false;});
+window.addEventListener("appinstalled",()=>{installEvt=null;$("#installBtn").hidden=true;toast("Installed. Open Recipe Box from your home screen.");});
+$("#installBtn").onclick=async()=>{if(!installEvt)return;installEvt.prompt();try{await installEvt.userChoice;}catch{}installEvt=null;$("#installBtn").hidden=true;};
+
 /* ---------- boot ---------- */
 setView(location.hash==="#list"?"list":"recipes");
+window.addEventListener("hashchange",()=>setView(location.hash==="#list"?"list":"recipes"));
 render();
 (async()=>{
   const c=window.claude;
-  const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg); loadLocal(); };
-  if(!c||!c.use){ localMode("Recipes and lists are saved in this browser only. Use Copy, Email or Text to share a list."); return; }
+  const localMode=msg=>{ $("#status").textContent="On this device"; showNotice(msg,"rb-local-notice"); loadLocal(); };
+  if(!c||!c.use){ localMode("Recipes and lists are saved on this device only. Use Copy, Email or Text to share a list."); return; }
   [db,user,downloads]=await Promise.all([c.use("db"),c.use("user"),c.use("downloads")]);
   if(!db){ localMode("Sign in to Claude to see your shared recipes. Until then, changes are saved in this browser only."); return; }
   live=true;

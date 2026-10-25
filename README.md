@@ -2,7 +2,7 @@
 
 A small recipe library for the household. Add recipes, sort them by meal, cuisine and tags, pick what you want to cook, and get one combined grocery list grouped by store section.
 
-It is a single file, `index.html`, with no build step and no dependencies.
+The app is a single page, `index.html`, with no build step and no dependencies. It is also an installable Android app (a Progressive Web App).
 
 ## Features
 
@@ -15,16 +15,34 @@ It is a single file, `index.html`, with no build step and no dependencies.
 
 ## Running it
 
-Open `index.html` in a browser, or serve the folder with any static host. To publish with GitHub Pages: **Settings → Pages → Deploy from a branch → `main` / root**.
+Serve the folder from any static host over HTTPS. With GitHub Pages: **Settings → Pages → Deploy from a branch → `main` / root**. The site appears at `https://<user>.github.io/reciperepo/`.
+
+You can also open `index.html` directly from disk, but installing and offline use need it to be served.
+
+## Installing on Android
+
+1. Open the site in **Chrome** on the phone.
+2. Tap **Install app** in the app's header. If the button doesn't appear, use Chrome's menu (⋮) → **Add to Home screen** → **Install**.
+3. Open **Recipe Box** from the home screen. It runs full-screen, works offline, and long-pressing the icon offers a shortcut straight to the grocery list.
+
+App files:
+
+| File | Purpose |
+| --- | --- |
+| `manifest.webmanifest` | App name, colors, icons and the grocery-list shortcut |
+| `sw.js` | Service worker that caches the app so it opens offline |
+| `icons/` | Home-screen, maskable and favicon icons |
+
+When you change `index.html` or the icons, bump `VERSION` in `sw.js` so installed copies refresh their cache. Installed apps check for a new version each time they open with a connection.
 
 ## Where data is saved
 
 | Where it runs | Storage |
 | --- | --- |
 | claude.ai artifact | Shared storage through the artifact's database. Everyone the page is shared with sees the same recipes and list. |
-| Anywhere else (local file, GitHub Pages) | The browser's `localStorage`. Data stays on that one device and browser. Five example recipes are loaded the first time. |
+| Anywhere else (GitHub Pages, the installed Android app) | The browser's `localStorage`. Data stays on that one device. Five example recipes are loaded the first time. |
 
-Clearing site data in the browser erases the local copy, so keep recipes you care about in the shared claude.ai version, or copy them out.
+Clearing Chrome's site data or uninstalling the app erases the local copy. Shared storage through Firestore is planned so both phones see the same recipes.
 
 ## Customizing
 
