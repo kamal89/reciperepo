@@ -133,6 +133,16 @@ main{padding-block:20px 60px}
 .field textarea{resize:vertical;min-height:110px}
 .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:30;font-weight:700}
+.backup{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid var(--line)}
+.backup .hint{margin-right:auto}
+.staples{margin-top:18px;background:var(--sunk);border-radius:8px;padding:10px 12px}
+.staples h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-family:var(--f-body);font-weight:700;margin-bottom:4px}
+.staples .item{padding:4px 0}
+.staplechips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.staplechips .chip{display:inline-flex;gap:4px;align-items:center}
+.staplechips form{display:flex;gap:6px;flex:1 1 180px;min-width:0}
+.staplechips input{flex:1;min-width:0;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:.88rem}
+.wake[aria-pressed="true"]{background:var(--mustard-soft);border-color:var(--mustard)}
 .copybox{width:100%;min-height:160px;font-family:var(--f-mono);font-size:.85rem;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 </style>
@@ -162,6 +172,12 @@ main{padding-block:20px 60px}
       <div class="chiprow" id="f-tag"><span class="lbl">Tags</span></div>
     </div>
     <div id="grid" class="grid"></div>
+    <div class="backup">
+      <span class="hint">Keep a copy of every recipe in a file you can restore later.</span>
+      <button class="btn small" id="exportBtn">Back up recipes</button>
+      <button class="btn small" id="importBtn">Restore from backup</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
   </section>
 
   <section id="view-list" hidden>
@@ -216,6 +232,10 @@ const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
 let db=null, user=null, canWrite=true, live=false;
 let recipes=[];            // [{id,...}]
 let plan={meals:{},checked:{},extras:[]};
+const DEFAULT_STAPLES=["salt","black pepper","olive oil"];
+const staples=()=>plan.staples??DEFAULT_STAPLES;
+const isStaple=e=>{if(e.extra)return false;const n=nameKey(e.name);return staples().some(s=>{const k=nameKey(s);return k&&(n===k||n.endsWith(" "+k));});};
+const normPlan=d=>{const p={meals:{...(d?.meals||{})},checked:{...(d?.checked||{})},extras:[...(d?.extras||[])]};if(Array.isArray(d?.staples))p.staples=[...d.staples];return p;};
 let filters={meal:null,cuisine:null,tag:null,q:""};
 let view="recipes";
 
@@ -254,7 +274,26 @@ function fmtQty(q){
   return (w? w+(best[1]?" ":""):"")+best[1] || "0";
 }
 const aisleOf=(n,unit)=>{if(unit==="can"||unit==="jar")return "Pantry";const s=n.toLowerCase(); for(const [a,re] of AISLES) if(re.test(s)) return a; return "Other";};
-const keyOf=(name,unit)=>(name.toLowerCase().replace(/[^a-z ]/g,"").trim().replace(/(es|s)$/,"")+"|"+unit);
+const nameKey=name=>name.toLowerCase().replace(/[^a-z ]/g,"").replace(/\s+/g," ").trim().replace(/(es|s)$/,"");
+// Units that can be added together: [family, size in the family's base unit]
+const FAM={tsp:["vol",1],tbsp:["vol",3],cup:["vol",48],oz:["wt",1],lb:["wt",16],g:["met",1],kg:["met",1000],ml:["mvol",1],l:["mvol",1000]};
+const keyOf=(name,unit)=>nameKey(name)+"|"+(FAM[unit]?.[0]??unit);
+const isNice=q=>{const f=q-Math.floor(q);return [0,.125,.25,1/3,.5,2/3,.75,1].some(x=>Math.abs(f-x)<.04);};
+// Turn a total in base units back into something you'd write on a list, e.g. 30 tsp -> "½ cup + 2 tbsp".
+function baseLabel(fam,b){
+  const fq=fmtQty, pl=(u,q)=>q>1&&PLURAL[u]?PLURAL[u]:u;
+  if(fam==="vol"){
+    if(b>=12){const c=b/48; if(isNice(c)) return fq(c)+" "+pl("cup",c);
+      const qc=Math.floor(c*4)/4, rem=b-qc*48; return fq(qc)+" "+pl("cup",qc)+(rem>=.5?" + "+fq(rem/3)+" tbsp":"");}
+    if(b>=3&&isNice(b/3)) return fq(b/3)+" tbsp";
+    if(b>=3){const t=Math.floor(b/3), rem=b-t*3; return t+" tbsp"+(rem>=.1?" + "+fq(rem)+" tsp":"");}
+    return fq(b)+" tsp";
+  }
+  if(fam==="wt") return b>=16? fq(b/16)+" lb" : fq(b)+" oz";
+  if(fam==="met") return b>=1000? fq(b/1000)+" kg" : Math.round(b)+" g";
+  if(fam==="mvol") return b>=1000? fq(b/1000)+" l" : Math.round(b)+" ml";
+  return "";
+}
 
 /* ---------- grocery aggregation ---------- */
 function buildList(){
@@ -264,12 +303,20 @@ function buildList(){
     const factor=(m.servings||r.servings||1)/(r.servings||1);
     for(const ing of r.ingredients||[]){
       if(/^(cold |hot |warm )?water$/i.test(ing.name.trim())) continue; // not something to buy
-      const k=keyOf(ing.name,ing.unit);
+      const k=keyOf(ing.name,ing.unit), fam=FAM[ing.unit];
       let e=map.get(k);
-      if(!e){e={key:k,name:ing.name,unit:ing.unit,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name,ing.unit)};map.set(k,e);}
-      if(ing.qty==null) e.noQty=true; else e.qty=(e.qty||0)+ing.qty*factor;
+      if(!e){e={key:k,name:ing.name,unit:ing.unit,fam:fam?.[0],base:0,qty:null,noQty:false,from:new Set(),aisle:aisleOf(ing.name,ing.unit)};map.set(k,e);}
+      if(ing.qty==null) e.noQty=true;
+      else if(fam) e.base+=ing.qty*factor*fam[1];
+      else e.qty=(e.qty||0)+ing.qty*factor;
       e.from.add(r.title);
     }
+  }
+  for(const e of map.values()) if(e.fam&&e.base>0){e.label=baseLabel(e.fam,e.base);e.qty=e.base;}
+  // "Salt" with no amount folds into "½ tsp salt" when both appear
+  for(const [k,e] of [...map]) if(e.qty==null&&!e.unit){
+    const nk=nameKey(e.name), other=[...map.values()].find(o=>o!==e&&o.qty!=null&&nameKey(o.name)===nk);
+    if(other){other.noQty=true;e.from.forEach(f=>other.from.add(f));map.delete(k);}
   }
   for(const x of plan.extras||[]) map.set("x:"+x.id,{key:"x:"+x.id,name:x.text,unit:"",qty:null,from:new Set(),aisle:"Extras",extra:true});
   const order=["Produce","Meat & Fish","Dairy & Eggs","Bakery","Pantry","Spices","Frozen","Other","Extras"];
@@ -278,16 +325,18 @@ function buildList(){
 }
 const PLURAL={cup:"cups",clove:"cloves",can:"cans",slice:"slices",stick:"sticks",jar:"jars",head:"heads",sprig:"sprigs",bunch:"bunches"};
 const unitText=(u,q)=>q>1&&PLURAL[u]?PLURAL[u]:u;
-const qtyText=e=>[fmtQty(e.qty),unitText(e.unit,e.qty)].filter(Boolean).join(" ");
+const qtyText=e=>e.label||[fmtQty(e.qty),unitText(e.unit,e.qty)].filter(Boolean).join(" ");
 function listText(onlyOpen=true){
   const groups=buildList(); const lines=["Grocery list"];
   const meals=Object.keys(plan.meals).map(id=>recipes.find(r=>r.id===id)?.title).filter(Boolean);
   if(meals.length) lines.push("For: "+meals.join(", "));
   for(const [a,items] of groups){
-    const its=items.filter(e=>!onlyOpen||!plan.checked[e.key]); if(!its.length) continue;
+    const its=items.filter(e=>!isStaple(e)&&(!onlyOpen||!plan.checked[e.key])); if(!its.length) continue;
     lines.push("",a.toUpperCase());
     for(const e of its) lines.push("[ ] "+[qtyText(e),e.name].filter(Boolean).join(" "));
   }
+  const have=groups.flatMap(([,i])=>i).filter(isStaple).map(e=>e.name.toLowerCase());
+  if(have.length) lines.push("","Check we still have: "+[...new Set(have)].join(", "));
   return lines.join("\n");
 }
 
@@ -297,7 +346,7 @@ const LOCAL_KEY="recipe-box-v1";
 function persistLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({recipes,plan}));}catch{}}
 function loadLocal(){
   let d=null; try{d=JSON.parse(localStorage.getItem(LOCAL_KEY)||"null");}catch{}
-  if(d&&Array.isArray(d.recipes)){recipes=d.recipes;plan={meals:{},checked:{},extras:[],...d.plan};}
+  if(d&&Array.isArray(d.recipes)){recipes=d.recipes;plan=normPlan(d.plan);}
   else {recipes=JSON.parse(document.getElementById("examples").textContent);persistLocal();}
   render();
 }
@@ -373,15 +422,26 @@ function renderGrocery(){
       <button class="btn small ghost" data-pick="${id}" aria-label="Remove ${esc(r.title)}">✕</button></div>`;}).join("")
     : `<p class="hint">No meals picked yet. Go to <b>Recipes</b> and tap <b>+ Add to meals</b> on what you want to cook.</p>`;
   $("#clearMeals").hidden=!ids.length;
-  const groups=buildList(); let total=0,open=0;
-  $("#glist").innerHTML=groups.length? groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{total++;const done=!!plan.checked[e.key];if(!done)open++;
-    return `<label class="item${done?" done":""}"><input type="checkbox" data-chk="${esc(e.key)}" ${done?"checked":""}><span class="q">${esc(qtyText(e))}${e.noQty&&e.qty!=null?" +":""}</span><span class="n">${esc(e.name)}${e.extra?"":`<span class="from">${esc([...e.from].join(", "))}</span>`}</span>${e.extra?`<button class="btn small ghost" data-rmx="${esc(e.key.slice(2))}" aria-label="Remove">✕</button>`:""}</label>`;}).join("")}</div>`).join("")
-    : `<p class="hint" style="margin-top:14px">Your list fills in as you pick meals. You can also add extra items below.</p>`;
+  const all=buildList(); let total=0,open=0;
+  const itemHtml=e=>{const done=!!plan.checked[e.key];
+    return `<label class="item${done?" done":""}"><input type="checkbox" data-chk="${esc(e.key)}" ${done?"checked":""}><span class="q">${esc(qtyText(e))}${e.noQty&&e.qty!=null?" +":""}</span><span class="n">${esc(e.name)}${e.extra?"":`<span class="from">${esc([...e.from].join(", "))}</span>`}</span>${e.extra?`<button class="btn small ghost" data-rmx="${esc(e.key.slice(2))}" aria-label="Remove">✕</button>`:""}</label>`;};
+  const groups=all.map(([a,items])=>[a,items.filter(e=>!isStaple(e))]).filter(([,i])=>i.length);
+  const have=all.flatMap(([,i])=>i).filter(isStaple);
+  const html=groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{total++;if(!plan.checked[e.key])open++;return itemHtml(e);}).join("")}</div>`).join("");
+  const st=staples();
+  const staplesHtml=`<div class="staples"><h3>Probably have already</h3>
+    ${have.length?have.map(itemHtml).join(""):`<p class="hint" style="margin:0">Nothing on this list matches your staples.</p>`}
+    <div class="staplechips">${st.map(x=>`<span class="chip">${esc(x)}${canWrite?` <button class="btn small ghost" style="padding:0 2px" data-rmstaple="${esc(x)}" aria-label="Remove ${esc(x)} from staples">✕</button>`:""}</span>`).join("")}
+    ${canWrite?`<form id="stapleForm"><input id="stapleIn" placeholder="Add something you always have" aria-label="Add a staple"><button class="btn small" type="submit">Add</button></form>`:""}</div>
+    <p class="hint" style="margin:6px 0 0">Staples stay off the list you copy or send, with a reminder to check them.</p></div>`;
+  $("#glist").innerHTML=(all.length? html : `<p class="hint" style="margin-top:14px">Your list fills in as you pick meals. You can also add extra items below.</p>`)+(all.length?staplesHtml:"");
+  const sf=$("#stapleForm"); if(sf) sf.onsubmit=ev=>{ev.preventDefault();const v=$("#stapleIn").value.trim().toLowerCase();if(!v)return;
+    if(!st.includes(v)){plan.staples=[...st,v];savePlan();} setTimeout(()=>$("#stapleIn")?.focus(),0);};
   $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
   $("#mealcount").textContent=ids.length;
 }
 function render(){ renderFilters(); renderGrid(); renderGrocery();
-  $("#addBtn").disabled=!canWrite; }
+  $("#addBtn").disabled=!canWrite; $("#importBtn").disabled=!canWrite; }
 
 function setView(v){view=v;
   $("#view-recipes").hidden=v!=="recipes"; $("#view-list").hidden=v!=="list";
@@ -391,7 +451,13 @@ function setView(v){view=v;
 
 /* ---------- dialogs ---------- */
 function openSheet(html){const o=$("#overlay");o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;o.hidden=false;o.querySelector("input,button")?.focus();}
-function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";}
+function closeSheet(){$("#overlay").hidden=true;$("#overlay").innerHTML="";releaseWake();}
+// Keep the screen awake while a recipe is open (cooking mode)
+let wake=null, wantWake=false;
+async function requestWake(){try{wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>{wake=null;syncWakeBtn();});}catch{wake=null;toast("This device won't keep the screen on from here.");wantWake=false;}syncWakeBtn();}
+function releaseWake(){wantWake=false;try{wake?.release();}catch{}wake=null;}
+function syncWakeBtn(){const b=$("#wakeBtn");if(b)b.setAttribute("aria-pressed",!!wake);}
+document.addEventListener("visibilitychange",()=>{if(wantWake&&!wake&&document.visibilityState==="visible")requestWake();});
 $("#overlay").addEventListener("click",e=>{if(e.target.id==="overlay")closeSheet();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#overlay").hidden)closeSheet();});
 
@@ -404,6 +470,7 @@ function showRecipe(id){
     ${r.steps?`<h3>Steps</h3><p class="steps">${esc(r.steps)}</p>`:""}
     ${r.source?`<p class="hint">Source: ${/^https?:\/\//.test(r.source)?`<a href="${esc(r.source)}" target="_blank" rel="noopener">${esc(r.source)}</a>`:esc(r.source)}</p>`:""}
     <div class="actions">
+      ${"wakeLock" in navigator?`<button class="btn wake" id="wakeBtn" aria-pressed="${!!wake}" style="margin-right:auto">☀ Keep screen on</button>`:""}
       ${canWrite?`<button class="btn danger ghost" data-del="${id}">Delete</button><button class="btn" data-edit="${id}">Edit</button>`:""}
       <button class="btn primary" data-pick="${id}" data-close>${picked?"Remove from meals":"+ Add to meals"}</button>
     </div>`);
@@ -461,9 +528,11 @@ document.addEventListener("click",async e=>{
     if(plan.meals[id]) delete plan.meals[id]; else {const r=recipes.find(x=>x.id===id);plan.meals[id]={servings:r?.servings||1};toast("Added to this week's meals");}
     savePlan(); }
   if(t.dataset.srv){ if(!canWrite) return; const m=plan.meals[t.dataset.srv]; m.servings=Math.max(1,(m.servings||1)+ +t.dataset.d); savePlan(); }
+  if(t.id==="wakeBtn"){ if(wake){releaseWake();syncWakeBtn();} else {wantWake=true;await requestWake();if(wake)toast("Screen stays on while this recipe is open.");} return; }
   if(t.dataset.edit) return editRecipe(t.dataset.edit);
   if(t.dataset.del){ if(t.dataset.armed){closeSheet();await deleteRecipe(t.dataset.del);toast("Recipe deleted");return;}
     t.dataset.armed="1"; t.textContent="Tap again to delete"; return; }
+  if(t.dataset.rmstaple){ e.preventDefault(); plan.staples=staples().filter(x=>x!==t.dataset.rmstaple); savePlan(); return; }
   if(t.dataset.rmx){ e.preventDefault(); plan.extras=plan.extras.filter(x=>x.id!==t.dataset.rmx); delete plan.checked["x:"+t.dataset.rmx]; savePlan(); }
   if(t.hasAttribute("data-close")) closeSheet();
 });
@@ -487,11 +556,47 @@ $("#textList").onclick=()=>{const text=listText();
   const a=document.createElement("a");a.href="sms:?&body="+encodeURIComponent(text);a.target="_blank";a.rel="noopener";a.click();
   toast("Opening Messages. The list is also copied in case it doesn't open.");};
 let downloads=null;
-$("#saveList").onclick=async()=>{const text=listText();
-  if(!downloads){ // outside claude.ai: a normal browser download
-    try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download="grocery-list.txt";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-    catch{copyFallback(text);} return;}
-  try{await downloads.save({filename:"grocery-list.txt",data:text});}catch(e){toast("The file wasn't saved.");}};
+$("#saveList").onclick=()=>saveFile("grocery-list.txt",listText(),"text/plain");
+
+/* ---------- backup and restore ---------- */
+async function saveFile(filename,text,type){
+  if(downloads){ try{await downloads.save({filename,data:text});return true;}catch{toast("The file wasn't saved.");return false;} }
+  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);return true;}
+  catch{copyFallback(text);return false;}
+}
+$("#exportBtn").onclick=async()=>{
+  if(!recipes.length){toast("There are no recipes to back up yet.");return;}
+  const data={app:"recipe-box",format:1,exportedAt:new Date().toISOString(),staples:plan.staples,recipes:recipes.map(({id,...r})=>({id,...r}))};
+  const ok=await saveFile(`recipe-box-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),"application/json");
+  if(ok&&!downloads) toast(`Saved ${recipes.length} recipes to your downloads.`);
+};
+$("#importBtn").onclick=()=>{ if(!canWrite){toast("You can't change this recipe box.");return;} $("#importFile").value=""; $("#importFile").click(); };
+const cleanId=id=>typeof id==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(id)?id:"r"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function cleanRecipe(r){
+  if(!r||typeof r.title!=="string"||!r.title.trim()) return null;
+  const str=v=>typeof v==="string"?v.slice(0,20000):"";
+  const ings=(Array.isArray(r.ingredients)?r.ingredients:[]).map(i=>typeof i==="string"?parseLine(i):(i&&typeof i.raw==="string"?parseLine(i.raw):null)).filter(Boolean);
+  return {id:cleanId(r.id),title:str(r.title).trim(),mealType:MEALS.includes(r.mealType)?r.mealType:"Dinner",cuisine:str(r.cuisine),
+    servings:Math.max(1,parseInt(r.servings)||1),time:str(r.time),tags:(Array.isArray(r.tags)?r.tags:[]).filter(t=>typeof t==="string").slice(0,20),
+    ingredients:ings,steps:str(r.steps),source:str(r.source),createdAt:str(r.createdAt)||new Date().toISOString()};
+}
+$("#importFile").addEventListener("change",async e=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  let data; try{data=JSON.parse(await f.text());}catch{toast("That file isn't a recipe backup.");return;}
+  const list=(Array.isArray(data?.recipes)?data.recipes:[]).map(cleanRecipe).filter(Boolean);
+  if(!list.length){toast("No recipes found in that file.");return;}
+  const ids=new Set(recipes.map(r=>r.id)); const upd=list.filter(r=>ids.has(r.id)).length;
+  openSheet(`<div class="top"><h2>Restore recipes</h2><button class="btn ghost" data-close aria-label="Close">✕</button></div>
+    <p>This backup has <b>${list.length}</b> recipe${list.length>1?"s":""}. ${list.length-upd} will be added${upd?` and <b>${upd}</b> will replace recipes you already have`:""}. Recipes that aren't in the backup are kept.</p>
+    <div class="actions"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" id="doImport">Restore ${list.length} recipe${list.length>1?"s":""}</button></div>`);
+  $("#doImport").onclick=async()=>{
+    closeSheet();
+    if(Array.isArray(data.staples)&&!plan.staples){plan.staples=data.staples.filter(x=>typeof x==="string");savePlan();}
+    if(!live){for(const r of list){const i=recipes.findIndex(x=>x.id===r.id);if(i>=0)recipes[i]=r;else recipes.push(r);}persistLocal();render();}
+    else{ for(const r of list){const {id,...body}=r; try{await db.collection("recipes").doc(id).set(body);}catch(err){writeFail(err);return;}} }
+    toast(`Restored ${list.length} recipe${list.length>1?"s":""}.`);
+  };
+});
 
 /* ---------- install as an app (Android Chrome) ---------- */
 let installEvt=null;
@@ -513,7 +618,7 @@ render();
   const w=user?await user.can("data.write"):null; if(w===false){canWrite=false;showNotice("You're viewing this recipe box. Ask the owner to make you a Contributor so you can add recipes and check off groceries.");}
   $("#status").textContent="Shared";
   db.collection("recipes").onSnapshot(s=>{recipes=s.docs.map(d=>({id:d.id,...d.data()}));render();},e=>{if(e.code!=="revoked")toast("Lost connection to your recipes. Reload to reconnect.");});
-  db.doc("plan/current").onSnapshot(s=>{const d=s.data();plan=d?{meals:{...(d.meals||{})},checked:{...(d.checked||{})},extras:[...(d.extras||[])]}:{meals:{},checked:{},extras:[]};render();});
+  db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();});
 })();
 </script>
 

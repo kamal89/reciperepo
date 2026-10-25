@@ -12,6 +12,10 @@ The app is a single page, `index.html`, with no build step and no dependencies. 
 - **Meal picking with servings.** Change servings per meal and the amounts scale.
 - **Combined grocery list.** Matching ingredients across meals are added together and grouped by aisle (Produce, Meat & Fish, Dairy & Eggs, Bakery, Pantry, Spices, Frozen, Other). Check items off while shopping and add extras.
 - **Sharing.** Copy the list, open it in your email or Messages app, or save it as a `.txt` file.
+- **Unit combining.** Teaspoons, tablespoons and cups of the same ingredient are added together (2 tbsp + ½ cup olive oil → ½ cup + 2 tbsp), as are ounces and pounds, grams and kilograms, and milliliters and liters.
+- **Pantry staples.** Items you always have (salt, black pepper, olive oil by default) move to a "Probably have already" section and stay off the copied list, which ends with a reminder to check them. Edit the staples at the bottom of the list.
+- **Backup and restore.** **Back up recipes** saves every recipe to a `.json` file. **Restore from backup** loads one back, adding new recipes and replacing ones with the same id. Recipes not in the file are kept.
+- **Keep screen on.** A toggle on each recipe stops the phone from going dark while you cook (Android Chrome and most desktop browsers).
 
 ## Running it
 
@@ -42,7 +46,7 @@ When you change `index.html` or the icons, bump `VERSION` in `sw.js` so installe
 | claude.ai artifact | Shared storage through the artifact's database. Everyone the page is shared with sees the same recipes and list. |
 | Anywhere else (GitHub Pages, the installed Android app) | The browser's `localStorage`. Data stays on that one device. Five example recipes are loaded the first time. |
 
-Clearing Chrome's site data or uninstalling the app erases the local copy. Shared storage through Firestore is planned so both phones see the same recipes.
+Clearing Chrome's site data or uninstalling the app erases the local copy, so use **Back up recipes** now and then. Shared storage through Firestore is planned so both phones see the same recipes.
 
 ## Customizing
 

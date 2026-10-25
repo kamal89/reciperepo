@@ -1,6 +1,6 @@
 // Offline support for Our Recipe Box.
 // Bump VERSION whenever app files change so phones pick up the new version.
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `recipe-box-shell-${VERSION}`;
 const RUNTIME = "recipe-box-runtime";
 const SHELL_FILES = [
