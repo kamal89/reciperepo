@@ -165,6 +165,8 @@ main{padding-block:20px 60px}
 .addbar input{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:1rem}
 .addbar .btn{padding-inline:18px}
 .addhint{margin:6px 0 0}
+.suggestrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.suggestrow .chip{background:var(--sunk);border-color:transparent;font-weight:700}
 .addpanel .common{margin-top:10px;border-top:0;padding-top:0}
 .addpanel .regulars{margin-top:10px}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
@@ -193,7 +195,7 @@ main{padding-block:20px 60px}
 .aisle.checked{margin-top:22px}
 .aisle.checked h3{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .aisle.checked h3 .btn{text-transform:none;letter-spacing:0;font-size:.8rem}
-.alldone{margin:14px 0 0;color:var(--accent);font-weight:700}
+.alldone{margin:14px 0 0;color:var(--accent);font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .unhide{margin:12px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .item .from{display:block;font-size:.78rem;color:var(--muted)}
 .item.done .n,.item.done .q{text-decoration:line-through;opacity:.5}
@@ -371,10 +373,10 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
     <div class="glayout">
       <div class="panel addpanel">
         <form class="addbar" id="extraForm" autocomplete="off">
-          <input id="extraIn" list="itemSuggest" placeholder="Add to the list: milk, eggs, bread…" aria-label="Add items to the grocery list" enterkeyhint="done">
+          <input id="extraIn" placeholder="Add to the list: milk, eggs, bread…" aria-label="Add items to the grocery list" enterkeyhint="done" autocomplete="off" autocorrect="off" spellcheck="false">
           <button class="btn primary" type="submit">Add</button>
         </form>
-        <datalist id="itemSuggest"></datalist>
+        <div class="suggestrow" id="suggestRow" hidden></div>
         <p class="hint addhint">Separate several items with commas.</p>
         <div class="regulars" id="regulars" hidden></div>
         <details class="common" id="common">
@@ -393,6 +395,7 @@ main{padding-bottom:calc(60px + var(--tray-h,0px))}
           <button class="btn small" id="textList">Text</button>
           <button class="btn small" id="saveList">Save as file</button>
           <button class="btn small ghost" id="uncheck">Uncheck all</button>
+          <button class="btn small ghost danger" id="clearList">Clear list</button>
         </div>
         <div id="glist"></div>
       </div>
@@ -451,12 +454,20 @@ function setAll(list){
   render();
 }
 let plan={meals:{},checked:{},extras:[]};
-const DEFAULT_STAPLES=["salt","black pepper","olive oil"];
+const DEFAULT_STAPLES=["salt","black pepper","olive oil","peanut butter"];
 const staples=()=>plan.staples??DEFAULT_STAPLES;
 const isStaple=e=>{if(e.extra)return false;const n=nameKey(e.name);return staples().some(s=>{const k=nameKey(s);return k&&(n===k||n.endsWith(" "+k));});};
 const normPlan=d=>{const p={meals:{...(d?.meals||{})},checked:{...(d?.checked||{})},extras:[...(d?.extras||[])]};if(Array.isArray(d?.staples))p.staples=[...d.staples];
   if(d?.regulars&&typeof d.regulars==="object")p.regulars={...d.regulars};if(Array.isArray(d?.common))p.common=[...d.common];
-  if(d?.hidden&&typeof d.hidden==="object"&&Object.keys(d.hidden).length)p.hidden={...d.hidden};return p;};
+  if(d?.hidden&&typeof d.hidden==="object"&&Object.keys(d.hidden).length)p.hidden={...d.hidden};
+  if(Array.isArray(d?.migrated))p.migrated=[...d.migrated];return p;};
+// One-time updates to saved lists (e.g. new default staples for lists whose staples were already customized)
+function migratePlan(){
+  if(!canWrite) return;
+  const done=new Set(plan.migrated||[]); let changed=false;
+  if(!done.has("pb-staple")){ if(Array.isArray(plan.staples)&&!plan.staples.includes("peanut butter")) plan.staples=[...plan.staples,"peanut butter"]; done.add("pb-staple"); changed=Array.isArray(plan.staples); }
+  if(changed){ plan.migrated=[...done]; savePlan(); }
+}
 let filters={meal:null,cuisine:null,tag:null,q:"",show:null};
 let sortBy="az"; try{sortBy=localStorage.getItem("rb-sort")||"az";}catch{}
 const lastMade=r=>(r.made&&r.made[0])||"";
@@ -592,7 +603,7 @@ const LOCAL_KEY="recipe-box-v1";
 function persistLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({recipes:allRecipes,plan}));}catch{}}
 function loadLocal(){
   let d=null; try{d=JSON.parse(localStorage.getItem(LOCAL_KEY)||"null");}catch{}
-  if(d&&Array.isArray(d.recipes)){plan=normPlan(d.plan);setAll(d.recipes);}
+  if(d&&Array.isArray(d.recipes)){plan=normPlan(d.plan);setAll(d.recipes);migratePlan();}
   else {setAll(JSON.parse(document.getElementById("examples").textContent));persistLocal();}
   render();
 }
@@ -713,7 +724,7 @@ function renderGrocery(){
   total=all.flatMap(([,i])=>i).filter(e=>!isStaple(e)).length;
   const nHidden=Object.keys(plan.hidden||{}).length;
   const html=groups.map(([a,items])=>`<div class="aisle"><h3>${esc(a)}</h3>${items.map(e=>{open++;return itemHtml(e);}).join("")}</div>`).join("")
-    +(!groups.length&&done.length?`<p class="alldone">✓ Everything's checked off.</p>`:"")
+    +(!groups.length&&done.length?`<p class="alldone">✓ Everything's checked off.${canWrite?` <button type="button" class="btn small primary" data-clearlist>Done shopping: clear list</button>`:""}</p>`:"")
     +(nHidden&&canWrite?`<p class="hint unhide">${nHidden} recipe item${nHidden>1?"s":""} removed from the list. <button type="button" class="btn small ghost" data-unhide>Put back</button></p>`:"");
   const st=staples();
   const staplesHtml=`<div class="staples"><h3>Probably have already</h3>
@@ -726,6 +737,7 @@ function renderGrocery(){
   const sf=$("#stapleForm"); if(sf) sf.onsubmit=ev=>{ev.preventDefault();const v=$("#stapleIn").value.trim().toLowerCase();if(!v)return;
     if(!st.includes(v)){plan.staples=[...st,v];savePlan();} setTimeout(()=>$("#stapleIn")?.focus(),0);};
   $("#listcount").textContent=total? `${open} of ${total} left to buy`:"";
+  $("#clearList").hidden=!all.length||!canWrite; $("#uncheck").hidden=!done.length;
   $("#mealcount").textContent=open; $("#mealcount").hidden=!open;   // items still to buy
 }
 function render(){ renderFilters(); renderGrid(); renderTrash(); renderGrocery(); renderCommon(); renderRegulars(); renderSuggest();
@@ -1045,7 +1057,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.f){const k=t.dataset.f;filters[k]=filters[k]===t.dataset.v?null:t.dataset.v;return render();}
   if(t.dataset.open) return showRecipe(t.dataset.open);
   if(t.dataset.pick){ if(!canWrite) return; const id=t.dataset.pick;
-    if(plan.meals[id]) delete plan.meals[id]; else {const r=recipes.find(x=>x.id===id);plan.meals[id]={servings:r?.servings||1};toast("Added to this week's meals");}
+    if(plan.meals[id]){ delete plan.meals[id]; pruneHidden(); } else {const r=recipes.find(x=>x.id===id);plan.meals[id]={servings:r?.servings||1};toast("Added to this week's meals");}
     savePlan(); }
   if(t.dataset.srv){ if(!canWrite) return; const m=plan.meals[t.dataset.srv]; m.servings=Math.max(1,(m.servings||1)+ +t.dataset.d); savePlan(); }
   if(t.id==="wakeBtn"){ if(wake){releaseWake();syncWakeBtn();} else {wantWake=true;await requestWake();if(wake)toast("Screen stays on while this recipe is open.");} return; }
@@ -1079,6 +1091,26 @@ $("#q").addEventListener("input",e=>{filters.q=e.target.value;renderGrid();});
 $("#clearMeals").onclick=()=>{const before={meals:plan.meals,checked:plan.checked,hidden:plan.hidden};plan.meals={};plan.checked={};delete plan.hidden;savePlan();
   toast("Cleared all meals",{action:"Undo",onAction:()=>{plan.meals=before.meals;plan.checked=before.checked;if(before.hidden)plan.hidden=before.hidden;savePlan();}});};
 $("#uncheck").onclick=()=>{plan.checked={};savePlan();};
+function pruneHidden(){
+  if(!plan.hidden) return;
+  const live=new Set();
+  for(const id of Object.keys(plan.meals)){ const r=recipes.find(x=>x.id===id); for(const i of r?.ingredients||[]) if(!i.heading) live.add(keyOf(i.name,i.unit)); }
+  for(const k of Object.keys(plan.hidden)) if(!live.has(k)) delete plan.hidden[k];
+  if(!Object.keys(plan.hidden).length) delete plan.hidden;
+}
+// After a trip: empty the list completely (added items, recipe ingredients and picked meals). Common items, regulars and staples stay.
+function clearList(){
+  const before={meals:plan.meals,checked:plan.checked,extras:plan.extras,hidden:plan.hidden};
+  const n=buildList().reduce((t,[,i])=>t+i.length,0);
+  plan.meals={}; plan.checked={}; plan.extras=[]; delete plan.hidden; savePlan();
+  toast(`Cleared the list${n?` (${n} item${n>1?"s":""})`:""}`,{action:"Undo",onAction:()=>{Object.assign(plan,{meals:before.meals,checked:before.checked,extras:before.extras});if(before.hidden)plan.hidden=before.hidden;savePlan();}});
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("#clearList,[data-clearlist]"); if(!b||!canWrite) return;
+  if(b.dataset.armed){ clearList(); return; }
+  b.dataset.armed="1"; const old=b.textContent; b.textContent="Tap again to clear everything";
+  setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=old; } },3500);
+});
 // Extras you add are remembered, so frequent ones become one-tap chips.
 const regKey=t=>t.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim().slice(0,60)||"item";
 function addExtra(v){
@@ -1182,13 +1214,30 @@ $("#regulars").addEventListener("click",e=>{
 $("#extraForm").addEventListener("submit",e=>{e.preventDefault();
   const parts=$("#extraIn").value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
   parts.forEach(x=>addExtra(x.charAt(0).toUpperCase()+x.slice(1)));
-  $("#extraIn").value=""; $("#extraIn").focus();
+  $("#extraIn").value=""; $("#extraIn").focus(); renderSuggest();
   if(parts.length>1) toast(`Added ${parts.length} items.`);
 });
+// Suggestions while typing: drawn by the app (not the browser's dropdown, which Safari pops open after every add)
 function renderSuggest(){
-  const names=[...new Set([...commonItems(),...Object.values(plan.regulars||{}).map(r=>r.text)])].sort((a,b)=>a.localeCompare(b));
-  $("#itemSuggest").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
+  const box=$("#suggestRow"), inp=$("#extraIn"); if(!box||!inp) return;
+  const seg=inp.value.split(",").pop().trim().toLowerCase();
+  if(!seg||document.activeElement!==inp){ box.hidden=true; box.innerHTML=""; return; }
+  const onList=new Set((plan.extras||[]).map(x=>regKey(x.text)));
+  const names=[...new Set([...Object.values(plan.regulars||{}).map(r=>r.text),...commonItems()])].filter(n=>!onList.has(regKey(n)));
+  const starts=names.filter(n=>n.toLowerCase().startsWith(seg)||n.toLowerCase().split(/\s+/).some(w=>w.startsWith(seg)));
+  const hits=[...starts.filter(n=>n.toLowerCase().startsWith(seg)),...starts.filter(n=>!n.toLowerCase().startsWith(seg))].filter(n=>n.toLowerCase()!==seg).slice(0,6);
+  box.hidden=!hits.length;
+  box.innerHTML=hits.map(n=>`<button type="button" class="chip" data-sug="${esc(n)}">+ ${esc(n)}</button>`).join("");
 }
+$("#extraIn").addEventListener("input",renderSuggest);
+$("#extraIn").addEventListener("focus",renderSuggest);
+$("#extraIn").addEventListener("blur",()=>setTimeout(renderSuggest,150));
+$("#suggestRow").addEventListener("pointerdown",e=>{ if(e.target.closest("[data-sug]")) e.preventDefault(); });   // keep the keyboard up
+$("#suggestRow").addEventListener("click",e=>{
+  const b=e.target.closest("[data-sug]"); if(!b) return;
+  const inp=$("#extraIn"), parts=inp.value.split(","); parts[parts.length-1]=" "+b.dataset.sug;
+  inp.value=parts.join(",").replace(/^\s+/,""); const f=$("#extraForm"); if(f.requestSubmit) f.requestSubmit(); else f.dispatchEvent(new Event("submit",{cancelable:true}));
+});
 $("#copyList").onclick=()=>{const text=listText();
   try{navigator.clipboard.writeText(text).then(()=>toast("List copied. Paste it into a text, email or notes app."),()=>copyFallback(text));}catch{copyFallback(text);}};
 $("#emailList").onclick=()=>{const text=listText();
@@ -1277,7 +1326,7 @@ async function startCloud(cfg){
     $("#status").textContent="Shared"; $("#signOutBtn").hidden=false; $("#signOutBtn").textContent=`Sign out (${u.email})`;
     const onErr=e=>{ if(e.code==="denied") showGate("denied"); else toast("Lost connection. Changes will sync when you're back online."); };
     unsubs.push(db.collection("recipes").onSnapshot(s=>{setAll(s.docs.map(d=>({id:d.id,...d.data()})));openShare();},onErr));
-    unsubs.push(db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();},onErr));
+    unsubs.push(db.doc("plan/current").onSnapshot(s=>{plan=normPlan(s.data());render();if(!s.metadata?.fromCache)migratePlan();},onErr));
   });
 }
 
